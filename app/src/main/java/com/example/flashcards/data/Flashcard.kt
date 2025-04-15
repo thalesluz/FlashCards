@@ -1,3 +1,4 @@
+// File: app/src/main/java/com/example/flashcards/data/Flashcard.kt
 package com.example.flashcards.data
 
 import androidx.room.Entity
@@ -5,8 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
-import com.example.flashcards.data.converter.FlashcardTypeConverter
-import java.util.Date
+import java.util.Date // Mantenha este import se usar Date em outros lugares
 
 @Entity(
     tableName = "flashcards",
@@ -27,13 +27,16 @@ data class Flashcard(
     val type: FlashcardType = FlashcardType.FRONT_BACK,
     val front: String,
     val back: String,
-    val clozeText: String? = null,           // Texto com palavras omitidas para tipo CLOZE
-    val clozeAnswer: String? = null,         // Resposta para o tipo CLOZE
-    val options: List<String>? = null,       // Opções para múltipla escolha
-    val correctOptionIndex: Int? = null,     // Índice da opção correta para múltipla escolha
+    val clozeText: String? = null,
+    val clozeAnswer: String? = null,
+    val options: List<String>? = null,
+    val correctOptionIndex: Int? = null,
     val lastReviewed: Date? = null,
     val nextReviewDate: Date? = null,
     val easeFactor: Float = 2.5f,
     val interval: Int = 0,
-    val repetitions: Int = 0
-) 
+    val repetitions: Int = 0,
+    // --- ADICIONADO ---
+    val createdAt: Long = System.currentTimeMillis() // Adiciona o timestamp de criação
+    // --- FIM DA ADIÇÃO ---
+)
