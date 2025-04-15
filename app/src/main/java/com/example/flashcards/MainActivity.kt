@@ -1,0 +1,362 @@
+package com.example.flashcards
+
+import android.content.Intent
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.flashcards.data.Flashcard
+import com.example.flashcards.data.FlashcardType
+import com.example.flashcards.databinding.ActivityMainBinding
+import com.example.flashcards.ui.FlashcardAdapter
+import com.example.flashcards.ui.FlashcardViewModel
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+
+class MainActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityMainBinding
+    private lateinit var viewModel: FlashcardViewModel
+    private lateinit var adapter: FlashcardAdapter
+    private var currentDeckId: Long = -1
+    private var currentDeckName: String = ""
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Obter o ID e nome do deck da intent
+        currentDeckId = intent.getLongExtra("deckId", -1)
+        currentDeckName = intent.getStringExtra("deckName") ?: ""
+
+        // Configurar o título da ActionBar
+        supportActionBar?.title = currentDeckName
+        
+        // Habilitar o botão de voltar na ActionBar
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.setDisplayShowHomeEnabled(true)
+
+        viewModel = ViewModelProvider(this)[FlashcardViewModel::class.java]
+        setupRecyclerView()
+        setupFab()
+        setupBottomNavigation()
+        observeFlashcards()
+    }
+
+    private fun setupBottomNavigation() {
+        binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.navigation_home -> {
+                    // Por enquanto não faz nada
+                    true
+                }
+                R.id.navigation_decks -> {
+                    // Por enquanto não faz nada
+                    true
+                }
+                R.id.navigation_exercise -> {
+                    startExercise()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun startExercise() {
+        val intent = Intent(this, ExerciseActivity::class.java)
+        intent.putExtra("deckId", currentDeckId)
+        intent.putExtra("deckName", currentDeckName)
+        startActivity(intent)
+    }
+
+    private fun setupRecyclerView() {
+        adapter = FlashcardAdapter(
+            onItemClick = { flashcard -> showQualityDialog(flashcard) },
+            onEditClick = { flashcard -> showAddFlashcardDialog(flashcard) }
+        )
+
+        binding.recyclerview.apply {
+            layoutManager = LinearLayoutManager(this@MainActivity)
+            adapter = this@MainActivity.adapter
+        }
+    }
+
+    private fun setupFab() {
+        binding.fab.setOnClickListener {
+            showAddFlashcardDialog()
+        }
+    }
+
+    private fun observeFlashcards() {
+        lifecycleScope.launch {
+            if (currentDeckId != -1L) {
+                viewModel.getFlashcardsForDeck(currentDeckId).collectLatest { flashcards ->
+                    adapter.submitList(flashcards)
+                    updateEmptyView(flashcards.isEmpty())
+                }
+            } else {
+                viewModel.dueFlashcards.collectLatest { flashcards ->
+                    adapter.submitList(flashcards)
+                    updateEmptyView(flashcards.isEmpty())
+                }
+            }
+        }
+    }
+
+    private fun updateEmptyView(isEmpty: Boolean) {
+        if (isEmpty) {
+            binding.emptyView.root.visibility = android.view.View.VISIBLE
+            binding.recyclerview.visibility = android.view.View.GONE
+        } else {
+            binding.emptyView.root.visibility = android.view.View.GONE
+            binding.recyclerview.visibility = android.view.View.VISIBLE
+        }
+    }
+
+    private fun showAddFlashcardDialog(flashcard: Flashcard? = null) {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_flashcard, null)
+        
+        // Referências para os layouts
+        val frontBackLayout = dialogView.findViewById<LinearLayout>(R.id.frontBackLayout)
+        val clozeLayout = dialogView.findViewById<LinearLayout>(R.id.clozeLayout)
+        val textInputLayout = dialogView.findViewById<LinearLayout>(R.id.textInputLayout)
+        val multipleChoiceLayout = dialogView.findViewById<LinearLayout>(R.id.multipleChoiceLayout)
+        
+        // Referências para os campos de texto
+        val frontEditText = dialogView.findViewById<EditText>(R.id.frontEditText)
+        val backEditText = dialogView.findViewById<EditText>(R.id.backEditText)
+        val clozeTextEditText = dialogView.findViewById<EditText>(R.id.clozeTextEditText)
+        val clozeAnswerEditText = dialogView.findViewById<EditText>(R.id.clozeAnswerEditText)
+        val textInputQuestionEditText = dialogView.findViewById<EditText>(R.id.textInputQuestionEditText)
+        val textInputAnswerEditText = dialogView.findViewById<EditText>(R.id.textInputAnswerEditText)
+        val multipleChoiceQuestionEditText = dialogView.findViewById<EditText>(R.id.multipleChoiceQuestionEditText)
+        val option1EditText = dialogView.findViewById<EditText>(R.id.option1EditText)
+        val option2EditText = dialogView.findViewById<EditText>(R.id.option2EditText)
+        val option3EditText = dialogView.findViewById<EditText>(R.id.option3EditText)
+        val option4EditText = dialogView.findViewById<EditText>(R.id.option4EditText)
+        
+        // Referências para os spinners
+        val flashcardTypeSpinner = dialogView.findViewById<AutoCompleteTextView>(R.id.flashcardTypeSpinner)
+        val correctOptionSpinner = dialogView.findViewById<AutoCompleteTextView>(R.id.correctOptionSpinner)
+        
+        // Configurar o spinner de tipo de flashcard
+        val flashcardTypes = arrayOf("Frente e Verso", "Omissão de palavras", "Digite a resposta", "Múltipla escolha")
+        val flashcardTypeAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, flashcardTypes)
+        flashcardTypeSpinner.setAdapter(flashcardTypeAdapter)
+        
+        // Configurar o spinner de opção correta para múltipla escolha
+        val options = arrayOf("Opção 1", "Opção 2", "Opção 3", "Opção 4")
+        val correctOptionAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, options)
+        correctOptionSpinner.setAdapter(correctOptionAdapter)
+        
+        // Preencher os campos se estiver editando um flashcard existente
+        flashcard?.let {
+            // Esconder todos os layouts primeiro
+            frontBackLayout.visibility = View.GONE
+            clozeLayout.visibility = View.GONE
+            textInputLayout.visibility = View.GONE
+            multipleChoiceLayout.visibility = View.GONE
+            
+            when (it.type) {
+                FlashcardType.FRONT_BACK -> {
+                    flashcardTypeSpinner.setText(flashcardTypes[0], false)
+                    frontEditText.setText(it.front)
+                    backEditText.setText(it.back)
+                    frontBackLayout.visibility = View.VISIBLE
+                }
+                FlashcardType.CLOZE -> {
+                    flashcardTypeSpinner.setText(flashcardTypes[1], false)
+                    clozeTextEditText.setText(it.clozeText)
+                    clozeAnswerEditText.setText(it.clozeAnswer)
+                    clozeLayout.visibility = View.VISIBLE
+                }
+                FlashcardType.TEXT_INPUT -> {
+                    flashcardTypeSpinner.setText(flashcardTypes[2], false)
+                    textInputQuestionEditText.setText(it.front)
+                    textInputAnswerEditText.setText(it.back)
+                    textInputLayout.visibility = View.VISIBLE
+                }
+                FlashcardType.MULTIPLE_CHOICE -> {
+                    flashcardTypeSpinner.setText(flashcardTypes[3], false)
+                    multipleChoiceQuestionEditText.setText(it.front)
+                    it.options?.let { options ->
+                        if (options.size >= 1) option1EditText.setText(options[0])
+                        if (options.size >= 2) option2EditText.setText(options[1])
+                        if (options.size >= 3) option3EditText.setText(options[2])
+                        if (options.size >= 4) option4EditText.setText(options[3])
+                    }
+                    it.correctOptionIndex?.let { index ->
+                        correctOptionSpinner.setText(options[index], false)
+                    }
+                    multipleChoiceLayout.visibility = View.VISIBLE
+                }
+            }
+        }
+        
+        // Configurar o listener para mudança de tipo de flashcard
+        flashcardTypeSpinner.setOnItemClickListener { _, _, position, _ ->
+            // Esconder todos os layouts
+            frontBackLayout.visibility = View.GONE
+            clozeLayout.visibility = View.GONE
+            textInputLayout.visibility = View.GONE
+            multipleChoiceLayout.visibility = View.GONE
+            
+            // Mostrar o layout correspondente ao tipo selecionado
+            when (position) {
+                0 -> frontBackLayout.visibility = View.VISIBLE
+                1 -> clozeLayout.visibility = View.VISIBLE
+                2 -> textInputLayout.visibility = View.VISIBLE
+                3 -> multipleChoiceLayout.visibility = View.VISIBLE
+            }
+        }
+        
+        // Mostrar o layout padrão (frente e verso) se não estiver editando
+        if (flashcard == null) {
+            frontBackLayout.visibility = View.VISIBLE
+        }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.add_flashcard))
+            .setView(dialogView)
+            .setPositiveButton(getString(R.string.save)) { _, _ ->
+                val selectedType = when (flashcardTypeSpinner.text.toString()) {
+                    "Frente e Verso" -> FlashcardType.FRONT_BACK
+                    "Omissão de palavras" -> FlashcardType.CLOZE
+                    "Digite a resposta" -> FlashcardType.TEXT_INPUT
+                    "Múltipla escolha" -> FlashcardType.MULTIPLE_CHOICE
+                    else -> FlashcardType.FRONT_BACK
+                }
+                
+                val newFlashcard = when (selectedType) {
+                    FlashcardType.FRONT_BACK -> {
+                        Flashcard(
+                            id = flashcard?.id ?: 0,
+                            deckId = currentDeckId,
+                            type = FlashcardType.FRONT_BACK,
+                            front = frontEditText.text.toString(),
+                            back = backEditText.text.toString()
+                        )
+                    }
+                    FlashcardType.CLOZE -> {
+                        Flashcard(
+                            id = flashcard?.id ?: 0,
+                            deckId = currentDeckId,
+                            type = FlashcardType.CLOZE,
+                            front = clozeTextEditText.text.toString(),
+                            back = "",
+                            clozeText = clozeTextEditText.text.toString(),
+                            clozeAnswer = clozeAnswerEditText.text.toString()
+                        )
+                    }
+                    FlashcardType.TEXT_INPUT -> {
+                        Flashcard(
+                            id = flashcard?.id ?: 0,
+                            deckId = currentDeckId,
+                            type = FlashcardType.TEXT_INPUT,
+                            front = textInputQuestionEditText.text.toString(),
+                            back = textInputAnswerEditText.text.toString()
+                        )
+                    }
+                    FlashcardType.MULTIPLE_CHOICE -> {
+                        val options = listOf(
+                            option1EditText.text.toString(),
+                            option2EditText.text.toString(),
+                            option3EditText.text.toString(),
+                            option4EditText.text.toString()
+                        )
+                        
+                        val correctOptionIndex = when (correctOptionSpinner.text.toString()) {
+                            "Opção 1" -> 0
+                            "Opção 2" -> 1
+                            "Opção 3" -> 2
+                            "Opção 4" -> 3
+                            else -> 0
+                        }
+                        
+                        Flashcard(
+                            id = flashcard?.id ?: 0,
+                            deckId = currentDeckId,
+                            type = FlashcardType.MULTIPLE_CHOICE,
+                            front = multipleChoiceQuestionEditText.text.toString(),
+                            back = "",
+                            options = options,
+                            correctOptionIndex = correctOptionIndex
+                        )
+                    }
+                }
+                
+                if (flashcard == null) {
+                    viewModel.insert(newFlashcard)
+                } else {
+                    viewModel.update(newFlashcard)
+                }
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    private fun showDeleteDialog(flashcard: Flashcard) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.delete))
+            .setMessage("Deseja realmente excluir este flashcard?")
+            .setPositiveButton(getString(R.string.delete)) { _, _ ->
+                viewModel.delete(flashcard)
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    private fun showQualityDialog(flashcard: Flashcard) {
+        val qualities = arrayOf(
+            getString(R.string.quality_1),
+            getString(R.string.quality_2),
+            getString(R.string.quality_3),
+            getString(R.string.quality_4),
+            getString(R.string.quality_5)
+        )
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Como você se saiu?")
+            .setItems(qualities) { _, which ->
+                val updatedFlashcard = viewModel.calculateNextReview(flashcard, which + 1)
+                viewModel.update(updatedFlashcard)
+            }
+            .show()
+    }
+
+    private fun showFlashcardOptionsDialog(flashcard: Flashcard) {
+        val options = arrayOf(
+            getString(R.string.review),
+            getString(R.string.edit),
+            getString(R.string.delete)
+        )
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.flashcard_options))
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showQualityDialog(flashcard)
+                    1 -> showAddFlashcardDialog(flashcard)
+                    2 -> showDeleteDialog(flashcard)
+                }
+            }
+            .show()
+    }
+
+    // Sobrescrever o método onSupportNavigateUp para lidar com o clique no botão de voltar
+    override fun onSupportNavigateUp(): Boolean {
+        onBackPressed()
+        return true
+    }
+} 
