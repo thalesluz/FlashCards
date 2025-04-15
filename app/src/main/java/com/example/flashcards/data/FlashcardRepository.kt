@@ -3,42 +3,46 @@ package com.example.flashcards.data
 import kotlinx.coroutines.flow.Flow
 import java.util.Date
 
-class FlashcardRepository(private val flashcardDao: FlashcardDao) {
-    val allFlashcards: Flow<List<Flashcard>> = flashcardDao.getAllFlashcards()
+class FlashcardRepository(private val dao: FlashcardDao) {
+    // Para repetição espaçada
+    val allFlashcardsByReview: Flow<List<Flashcard>> = dao.getAllFlashcardsByReview()
 
-    fun getFlashcardsForDeck(deckId: Long): Flow<List<Flashcard>> {
-        return flashcardDao.getFlashcardsForDeck(deckId)
+    // Para visualização normal
+    val allFlashcardsByCreation: Flow<List<Flashcard>> = dao.getAllFlashcardsByCreation()
+
+    fun getFlashcardsForDeckByReview(deckId: Long): Flow<List<Flashcard>> {
+        return dao.getFlashcardsForDeckByReview(deckId)
     }
 
-    fun getAllFlashcards(): Flow<List<Flashcard>> {
-        return flashcardDao.getAllFlashcards()
+    fun getFlashcardsForDeckByCreation(deckId: Long): Flow<List<Flashcard>> {
+        return dao.getFlashcardsForDeckByCreation(deckId)
     }
 
     fun getDueFlashcards(): Flow<List<Flashcard>> {
-        return flashcardDao.getDueFlashcards(Date())
+        return dao.getDueFlashcards(Date())
     }
 
     fun getDueFlashcardsForDeck(deckId: Long): Flow<List<Flashcard>> {
-        return flashcardDao.getDueFlashcardsForDeck(deckId, Date())
+        return dao.getDueFlashcardsForDeck(deckId, Date())
     }
 
     suspend fun insert(flashcard: Flashcard) {
-        flashcardDao.insertFlashcard(flashcard)
+        dao.insert(flashcard)
     }
 
     suspend fun update(flashcard: Flashcard) {
-        flashcardDao.updateFlashcard(flashcard)
+        dao.update(flashcard)
     }
 
     suspend fun delete(flashcard: Flashcard) {
-        flashcardDao.deleteFlashcard(flashcard)
+        dao.delete(flashcard)
     }
 
-    suspend fun getFlashcardById(id: Long): Flashcard? {
-        return flashcardDao.getFlashcardById(id)
+    suspend fun getById(id: Long): Flashcard? {
+        return dao.getById(id)
     }
 
-    suspend fun deleteAllFlashcardsForDeck(deckId: Long) {
-        flashcardDao.deleteAllFlashcardsForDeck(deckId)
+    suspend fun deleteAllForDeck(deckId: Long) {
+        dao.deleteAllForDeck(deckId)
     }
-} 
+}

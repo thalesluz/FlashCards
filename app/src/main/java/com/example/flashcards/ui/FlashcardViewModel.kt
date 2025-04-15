@@ -12,18 +12,26 @@ import java.util.Date
 
 class FlashcardViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FlashcardRepository
-    val allFlashcards: Flow<List<Flashcard>>
+
+    // Fluxos para diferentes modos de visualização
+    val allFlashcardsByReview: Flow<List<Flashcard>>
+    val allFlashcardsByCreation: Flow<List<Flashcard>>
     val dueFlashcards: Flow<List<Flashcard>>
 
     init {
         val flashcardDao = FlashcardDatabase.getDatabase(application).flashcardDao()
         repository = FlashcardRepository(flashcardDao)
-        allFlashcards = repository.allFlashcards
+        allFlashcardsByReview = repository.allFlashcardsByReview
+        allFlashcardsByCreation = repository.allFlashcardsByCreation
         dueFlashcards = repository.getDueFlashcards()
     }
 
-    fun getFlashcardsForDeck(deckId: Long): Flow<List<Flashcard>> {
-        return repository.getFlashcardsForDeck(deckId)
+    fun getFlashcardsForDeckByReview(deckId: Long): Flow<List<Flashcard>> {
+        return repository.getFlashcardsForDeckByReview(deckId)
+    }
+
+    fun getFlashcardsForDeckByCreation(deckId: Long): Flow<List<Flashcard>> {
+        return repository.getFlashcardsForDeckByCreation(deckId)
     }
 
     fun getDueFlashcardsForDeck(deckId: Long): Flow<List<Flashcard>> {
@@ -42,12 +50,12 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
         repository.delete(flashcard)
     }
 
-    fun getFlashcardById(id: Long) = viewModelScope.launch {
-        repository.getFlashcardById(id)
+    suspend fun getFlashcardById(id: Long): Flashcard? {
+        return repository.getById(id)
     }
 
     fun deleteAllFlashcardsForDeck(deckId: Long) = viewModelScope.launch {
-        repository.deleteAllFlashcardsForDeck(deckId)
+        repository.deleteAllForDeck(deckId)
     }
 
     fun calculateNextReview(flashcard: Flashcard, quality: Int): Flashcard {
@@ -78,8 +86,4 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
             else -> (oldInterval * easeFactor).toInt()
         }
     }
-
-    fun getAllFlashcards(): Flow<List<Flashcard>> {
-        return repository.getAllFlashcards()
-    }
-} 
+}

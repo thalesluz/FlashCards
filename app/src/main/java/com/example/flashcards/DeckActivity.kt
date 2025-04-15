@@ -17,7 +17,6 @@ import com.example.flashcards.ui.FlashcardViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 class DeckActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDeckBinding
@@ -42,14 +41,8 @@ class DeckActivity : AppCompatActivity() {
     private fun setupBottomNavigation() {
         binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.navigation_home -> {
-                    // Por enquanto não faz nada
-                    true
-                }
-                R.id.navigation_decks -> {
-                    // Por enquanto não faz nada
-                    true
-                }
+                R.id.navigation_home -> true
+                R.id.navigation_decks -> true
                 R.id.navigation_exercise -> {
                     startExercise()
                     true
@@ -71,8 +64,8 @@ class DeckActivity : AppCompatActivity() {
             getFlashcardCount = { deckId ->
                 var count = 0
                 lifecycleScope.launch {
-                    val actualCount = deckViewModel.getFlashcardCountForDeck(deckId)
-                    adapter.updateFlashcardCount(deckId, actualCount)
+                    count = deckViewModel.getFlashcardCountForDeck(deckId)
+                    adapter.updateFlashcardCount(deckId, count)
                 }
                 count
             }
@@ -95,11 +88,11 @@ class DeckActivity : AppCompatActivity() {
             deckViewModel.allDecks.collectLatest { decks ->
                 adapter.submitList(decks)
                 if (decks.isEmpty()) {
-                    binding.emptyView.root.visibility = android.view.View.VISIBLE
-                    binding.recyclerview.visibility = android.view.View.GONE
+                    binding.emptyView.root.visibility = View.VISIBLE
+                    binding.recyclerview.visibility = View.GONE
                 } else {
-                    binding.emptyView.root.visibility = android.view.View.GONE
-                    binding.recyclerview.visibility = android.view.View.VISIBLE
+                    binding.emptyView.root.visibility = View.GONE
+                    binding.recyclerview.visibility = View.VISIBLE
                 }
             }
         }
@@ -154,13 +147,13 @@ class DeckActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton(getString(R.string.cancel), null)
-        
+
         if (deck != null) {
             dialogBuilder.setNeutralButton(getString(R.string.delete_deck_from_edit)) { _, _ ->
                 showDeleteDialog(deck)
             }
         }
-        
+
         dialogBuilder.show()
     }
 
@@ -177,7 +170,7 @@ class DeckActivity : AppCompatActivity() {
     }
 
     private fun openFlashcardActivity(deck: Deck) {
-        val intent = android.content.Intent(this, MainActivity::class.java)
+        val intent = Intent(this, MainActivity::class.java)
         intent.putExtra("deckId", deck.id)
         intent.putExtra("deckName", deck.name)
         startActivity(intent)
@@ -189,7 +182,7 @@ class DeckActivity : AppCompatActivity() {
             getString(R.string.edit),
             getString(R.string.delete)
         )
-        
+
         MaterialAlertDialogBuilder(this)
             .setTitle(deck.name)
             .setItems(options) { _, which ->
@@ -201,4 +194,4 @@ class DeckActivity : AppCompatActivity() {
             }
             .show()
     }
-} 
+}

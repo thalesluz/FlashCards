@@ -23,10 +23,7 @@ class ExerciseSelectionActivity : AppCompatActivity() {
         binding = ActivityExerciseSelectionBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Configurar o título da ActionBar
         supportActionBar?.title = "Selecionar Deck para Exercício"
-        
-        // Habilitar o botão de voltar na ActionBar
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.setDisplayShowHomeEnabled(true)
 
@@ -39,7 +36,6 @@ class ExerciseSelectionActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         adapter = DeckAdapter(
             onItemClick = { deck -> startExercise(deck.id, deck.name) },
-            onEditClick = null,
             getFlashcardCount = { deckId ->
                 var count = 0
                 lifecycleScope.launch {
@@ -84,9 +80,8 @@ class ExerciseSelectionActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    // Sobrescrever o método onSupportNavigateUp para lidar com o clique no botão de voltar
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
     }
-} 
+}

@@ -36,19 +36,13 @@ class ExerciseActivity : AppCompatActivity() {
         binding = ActivityExerciseBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Obter o ID e nome do deck da intent
         currentDeckId = intent.getLongExtra("deckId", -1)
         currentDeckName = intent.getStringExtra("deckName") ?: ""
-
-        // Configurar o título da ActionBar
         supportActionBar?.title = "Exercício: $currentDeckName"
-        
-        // Habilitar o botão de voltar na ActionBar
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.setDisplayShowHomeEnabled(true)
 
         viewModel = ViewModelProvider(this)[FlashcardViewModel::class.java]
-        
         setupExercise()
     }
 
@@ -80,8 +74,8 @@ class ExerciseActivity : AppCompatActivity() {
     private fun setupExercise() {
         lifecycleScope.launch {
             if (currentDeckId != -1L) {
-                viewModel.getFlashcardsForDeck(currentDeckId).collectLatest { flashcardList ->
-                    flashcards = flashcardList.shuffled() // Já começa embaralhado
+                viewModel.getFlashcardsForDeckByReview(currentDeckId).collectLatest { flashcardList ->
+                    flashcards = flashcardList.shuffled()
                     if (flashcards.isNotEmpty()) {
                         showCurrentFlashcard()
                     } else {
@@ -89,9 +83,8 @@ class ExerciseActivity : AppCompatActivity() {
                     }
                 }
             } else {
-                // Buscar todos os flashcards de todos os decks
-                viewModel.getAllFlashcards().collectLatest { flashcardList ->
-                    flashcards = flashcardList.shuffled() // Já começa embaralhado
+                viewModel.allFlashcardsByReview.collectLatest { flashcardList ->
+                    flashcards = flashcardList.shuffled()
                     if (flashcards.isNotEmpty()) {
                         showCurrentFlashcard()
                     } else {
@@ -110,20 +103,13 @@ class ExerciseActivity : AppCompatActivity() {
     private fun showCurrentFlashcard() {
         binding.exerciseContainer.visibility = View.VISIBLE
         binding.emptyView.root.visibility = View.GONE
-        
+
         val flashcard = flashcards[currentIndex]
-        
-        // Atualizar a barra de progresso
         val progress = ((currentIndex + 1) * 100) / flashcards.size
         binding.progressBar.progress = progress
-        
-        // Atualizar o contador
         binding.counterText.text = "${currentIndex + 1}/${flashcards.size}"
-        
-        // Mostrar a pergunta
         binding.questionText.text = flashcard.front
-        
-        // Configurar o layout baseado no tipo de flashcard
+
         when (flashcard.type) {
             FlashcardType.FRONT_BACK -> setupFrontBackLayout(flashcard)
             FlashcardType.CLOZE -> setupClozeLayout(flashcard)
@@ -137,10 +123,10 @@ class ExerciseActivity : AppCompatActivity() {
         binding.textInputLayout.visibility = View.GONE
         binding.multipleChoiceLayout.visibility = View.GONE
         binding.frontBackLayout.visibility = View.VISIBLE
-        
+
         binding.answerInput.text?.clear()
         binding.answerInput.hint = "Digite a resposta"
-        
+
         binding.submitButton.setOnClickListener {
             checkAnswer(flashcard, binding.answerInput.text?.toString() ?: "")
         }
@@ -151,10 +137,10 @@ class ExerciseActivity : AppCompatActivity() {
         binding.textInputLayout.visibility = View.GONE
         binding.multipleChoiceLayout.visibility = View.GONE
         binding.clozeLayout.visibility = View.VISIBLE
-        
+
         binding.clozeAnswerInput.text?.clear()
         binding.clozeAnswerInput.hint = "Digite a palavra que falta"
-        
+
         binding.submitButton.setOnClickListener {
             checkAnswer(flashcard, binding.clozeAnswerInput.text?.toString() ?: "")
         }
@@ -165,10 +151,10 @@ class ExerciseActivity : AppCompatActivity() {
         binding.clozeLayout.visibility = View.GONE
         binding.multipleChoiceLayout.visibility = View.GONE
         binding.textInputLayout.visibility = View.VISIBLE
-        
+
         binding.textInputAnswer.text?.clear()
         binding.textInputAnswer.hint = "Digite a resposta"
-        
+
         binding.submitButton.setOnClickListener {
             checkAnswer(flashcard, binding.textInputAnswer.text?.toString() ?: "")
         }
@@ -179,11 +165,10 @@ class ExerciseActivity : AppCompatActivity() {
         binding.clozeLayout.visibility = View.GONE
         binding.textInputLayout.visibility = View.GONE
         binding.multipleChoiceLayout.visibility = View.VISIBLE
-        
-        // Limpar seleção anterior
+
         binding.optionsRadioGroup.clearCheck()
-        
-        // Configurar as opções
+        binding.optionsRadioGroup.removeAllViews()
+
         flashcard.options?.let { options ->
             for (i in options.indices) {
                 val radioButton = RadioButton(this)
@@ -192,14 +177,13 @@ class ExerciseActivity : AppCompatActivity() {
                 binding.optionsRadioGroup.addView(radioButton)
             }
         }
-        
+
         binding.submitButton.setOnClickListener {
             val selectedId = binding.optionsRadioGroup.checkedRadioButtonId
             if (selectedId != -1) {
                 val selectedIndex = binding.optionsRadioGroup.indexOfChild(findViewById(selectedId))
                 checkAnswer(flashcard, selectedIndex.toString())
             } else {
-                // Nenhuma opção selecionada
                 showError("Por favor, selecione uma opção")
             }
         }
@@ -212,7 +196,7 @@ class ExerciseActivity : AppCompatActivity() {
             FlashcardType.TEXT_INPUT -> userAnswer.equals(flashcard.back, ignoreCase = true)
             FlashcardType.MULTIPLE_CHOICE -> userAnswer.toInt() == flashcard.correctOptionIndex
         }
-        
+
         if (isCorrect) {
             correctAnswers++
             showCorrectFeedback()
@@ -240,7 +224,7 @@ class ExerciseActivity : AppCompatActivity() {
             FlashcardType.TEXT_INPUT -> flashcard.back
             FlashcardType.MULTIPLE_CHOICE -> flashcard.options?.get(flashcard.correctOptionIndex ?: 0) ?: ""
         }
-        
+
         MaterialAlertDialogBuilder(this)
             .setTitle("Incorreto!")
             .setMessage("A resposta correta era: $correctAnswer")
@@ -281,9 +265,8 @@ class ExerciseActivity : AppCompatActivity() {
             .show()
     }
 
-    // Sobrescrever o método onSupportNavigateUp para lidar com o clique no botão de voltar
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
     }
-} 
+}

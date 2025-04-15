@@ -3,13 +3,14 @@ package com.example.flashcards
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -35,14 +36,9 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Obter o ID e nome do deck da intent
         currentDeckId = intent.getLongExtra("deckId", -1)
         currentDeckName = intent.getStringExtra("deckName") ?: ""
-
-        // Configurar o título da ActionBar
         supportActionBar?.title = currentDeckName
-        
-        // Habilitar o botão de voltar na ActionBar
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.setDisplayShowHomeEnabled(true)
 
@@ -56,14 +52,8 @@ class MainActivity : AppCompatActivity() {
     private fun setupBottomNavigation() {
         binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.navigation_home -> {
-                    // Por enquanto não faz nada
-                    true
-                }
-                R.id.navigation_decks -> {
-                    // Por enquanto não faz nada
-                    true
-                }
+                R.id.navigation_home -> true
+                R.id.navigation_decks -> true
                 R.id.navigation_exercise -> {
                     startExercise()
                     true
@@ -101,7 +91,7 @@ class MainActivity : AppCompatActivity() {
     private fun observeFlashcards() {
         lifecycleScope.launch {
             if (currentDeckId != -1L) {
-                viewModel.getFlashcardsForDeck(currentDeckId).collectLatest { flashcards ->
+                viewModel.getFlashcardsForDeckByCreation(currentDeckId).collectLatest { flashcards ->
                     adapter.submitList(flashcards)
                     updateEmptyView(flashcards.isEmpty())
                 }
@@ -115,25 +105,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateEmptyView(isEmpty: Boolean) {
-        if (isEmpty) {
-            binding.emptyView.root.visibility = android.view.View.VISIBLE
-            binding.recyclerview.visibility = android.view.View.GONE
-        } else {
-            binding.emptyView.root.visibility = android.view.View.GONE
-            binding.recyclerview.visibility = android.view.View.VISIBLE
-        }
+        binding.emptyView.root.visibility = if (isEmpty) View.VISIBLE else View.GONE
+        binding.recyclerview.visibility = if (isEmpty) View.GONE else View.VISIBLE
     }
 
     private fun showAddFlashcardDialog(flashcard: Flashcard? = null) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_flashcard, null)
-        
-        // Referências para os layouts
+
         val frontBackLayout = dialogView.findViewById<LinearLayout>(R.id.frontBackLayout)
         val clozeLayout = dialogView.findViewById<LinearLayout>(R.id.clozeLayout)
         val textInputLayout = dialogView.findViewById<LinearLayout>(R.id.textInputLayout)
         val multipleChoiceLayout = dialogView.findViewById<LinearLayout>(R.id.multipleChoiceLayout)
-        
-        // Referências para os campos de texto
+
         val frontEditText = dialogView.findViewById<EditText>(R.id.frontEditText)
         val backEditText = dialogView.findViewById<EditText>(R.id.backEditText)
         val clozeTextEditText = dialogView.findViewById<EditText>(R.id.clozeTextEditText)
@@ -145,29 +128,24 @@ class MainActivity : AppCompatActivity() {
         val option2EditText = dialogView.findViewById<EditText>(R.id.option2EditText)
         val option3EditText = dialogView.findViewById<EditText>(R.id.option3EditText)
         val option4EditText = dialogView.findViewById<EditText>(R.id.option4EditText)
-        
-        // Referências para os spinners
+
         val flashcardTypeSpinner = dialogView.findViewById<AutoCompleteTextView>(R.id.flashcardTypeSpinner)
         val correctOptionSpinner = dialogView.findViewById<AutoCompleteTextView>(R.id.correctOptionSpinner)
-        
-        // Configurar o spinner de tipo de flashcard
+
         val flashcardTypes = arrayOf("Frente e Verso", "Omissão de palavras", "Digite a resposta", "Múltipla escolha")
         val flashcardTypeAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, flashcardTypes)
         flashcardTypeSpinner.setAdapter(flashcardTypeAdapter)
-        
-        // Configurar o spinner de opção correta para múltipla escolha
+
         val options = arrayOf("Opção 1", "Opção 2", "Opção 3", "Opção 4")
         val correctOptionAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, options)
         correctOptionSpinner.setAdapter(correctOptionAdapter)
-        
-        // Preencher os campos se estiver editando um flashcard existente
+
         flashcard?.let {
-            // Esconder todos os layouts primeiro
             frontBackLayout.visibility = View.GONE
             clozeLayout.visibility = View.GONE
             textInputLayout.visibility = View.GONE
             multipleChoiceLayout.visibility = View.GONE
-            
+
             when (it.type) {
                 FlashcardType.FRONT_BACK -> {
                     flashcardTypeSpinner.setText(flashcardTypes[0], false)
@@ -203,16 +181,13 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        
-        // Configurar o listener para mudança de tipo de flashcard
+
         flashcardTypeSpinner.setOnItemClickListener { _, _, position, _ ->
-            // Esconder todos os layouts
             frontBackLayout.visibility = View.GONE
             clozeLayout.visibility = View.GONE
             textInputLayout.visibility = View.GONE
             multipleChoiceLayout.visibility = View.GONE
-            
-            // Mostrar o layout correspondente ao tipo selecionado
+
             when (position) {
                 0 -> frontBackLayout.visibility = View.VISIBLE
                 1 -> clozeLayout.visibility = View.VISIBLE
@@ -220,8 +195,7 @@ class MainActivity : AppCompatActivity() {
                 3 -> multipleChoiceLayout.visibility = View.VISIBLE
             }
         }
-        
-        // Mostrar o layout padrão (frente e verso) se não estiver editando
+
         if (flashcard == null) {
             frontBackLayout.visibility = View.VISIBLE
         }
@@ -237,7 +211,7 @@ class MainActivity : AppCompatActivity() {
                     "Múltipla escolha" -> FlashcardType.MULTIPLE_CHOICE
                     else -> FlashcardType.FRONT_BACK
                 }
-                
+
                 val newFlashcard = when (selectedType) {
                     FlashcardType.FRONT_BACK -> {
                         Flashcard(
@@ -275,7 +249,7 @@ class MainActivity : AppCompatActivity() {
                             option3EditText.text.toString(),
                             option4EditText.text.toString()
                         )
-                        
+
                         val correctOptionIndex = when (correctOptionSpinner.text.toString()) {
                             "Opção 1" -> 0
                             "Opção 2" -> 1
@@ -283,7 +257,7 @@ class MainActivity : AppCompatActivity() {
                             "Opção 4" -> 3
                             else -> 0
                         }
-                        
+
                         Flashcard(
                             id = flashcard?.id ?: 0,
                             deckId = currentDeckId,
@@ -295,7 +269,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     }
                 }
-                
+
                 if (flashcard == null) {
                     viewModel.insert(newFlashcard)
                 } else {
@@ -341,7 +315,7 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.edit),
             getString(R.string.delete)
         )
-        
+
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.flashcard_options))
             .setItems(options) { _, which ->
@@ -354,9 +328,22 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    // Sobrescrever o método onSupportNavigateUp para lidar com o clique no botão de voltar
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
     }
-} 
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.exercise_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_shuffle -> {
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+}
