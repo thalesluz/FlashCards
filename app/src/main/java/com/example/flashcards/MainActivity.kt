@@ -1,6 +1,8 @@
 package com.example.flashcards
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
@@ -12,6 +14,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -20,6 +23,8 @@ import com.example.flashcards.data.FlashcardType
 import com.example.flashcards.databinding.ActivityMainBinding
 import com.example.flashcards.ui.FlashcardAdapter
 import com.example.flashcards.ui.FlashcardViewModel
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -30,6 +35,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: FlashcardAdapter
     private var currentDeckId: Long = -1
     private var currentDeckName: String = ""
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,6 +53,9 @@ class MainActivity : AppCompatActivity() {
         setupFab()
         setupBottomNavigation()
         observeFlashcards()
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        requestUserLocation()
     }
 
     private fun setupBottomNavigation() {
@@ -328,6 +337,29 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun requestUserLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1001)
+            return
+        }
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            if (location != null) {
+                val latitude = location.latitude
+                val longitude = location.longitude
+                Toast.makeText(this, "Localização: $latitude, $longitude", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this, "Não foi possível obter a localização", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1001 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            requestUserLocation()
+        }
+    }
+
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
@@ -341,6 +373,10 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_shuffle -> {
+                true
+            }
+            R.id.action_environments -> {
+                Toast.makeText(this, "Ambientes selecionado", Toast.LENGTH_SHORT).show()
                 true
             }
             else -> super.onOptionsItemSelected(item)

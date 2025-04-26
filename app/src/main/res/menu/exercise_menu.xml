@@ -6,4 +6,9 @@
         android:icon="@android:drawable/ic_menu_rotate"
         android:title="Embaralhar"
         app:showAsAction="ifRoom" />
-</menu> 
+    <item
+        android:id="@+id/action_environments"
+        android:icon="@android:drawable/ic_menu_mapmode"
+        android:title="Ambientes"
+        app:showAsAction="never" />
+</menu>
