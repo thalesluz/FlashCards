@@ -6,24 +6,31 @@ import androidx.lifecycle.viewModelScope
 import com.example.flashcards.data.Flashcard
 import com.example.flashcards.data.FlashcardDatabase
 import com.example.flashcards.data.FlashcardRepository
+import com.example.flashcards.data.UserLocation
+import com.example.flashcards.data.UserLocationDao
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import java.util.Date
 
 class FlashcardViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FlashcardRepository
+    private val userLocationDao: UserLocationDao
 
     // Fluxos para diferentes modos de visualização
     val allFlashcardsByReview: Flow<List<Flashcard>>
     val allFlashcardsByCreation: Flow<List<Flashcard>>
     val dueFlashcards: Flow<List<Flashcard>>
+    val latestUserLocation: Flow<UserLocation?>
 
     init {
-        val flashcardDao = FlashcardDatabase.getDatabase(application).flashcardDao()
+        val database = FlashcardDatabase.getDatabase(application)
+        val flashcardDao = database.flashcardDao()
+        userLocationDao = database.userLocationDao()
         repository = FlashcardRepository(flashcardDao)
         allFlashcardsByReview = repository.allFlashcardsByReview
         allFlashcardsByCreation = repository.allFlashcardsByCreation
         dueFlashcards = repository.getDueFlashcards()
+        latestUserLocation = userLocationDao.getLatestLocation()
     }
 
     fun getFlashcardsForDeckByReview(deckId: Long): Flow<List<Flashcard>> {
@@ -71,6 +78,19 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
             interval = newInterval,
             repetitions = flashcard.repetitions + 1
         )
+    }
+
+    // Métodos para gerenciar localização do usuário
+    fun saveUserLocation(latitude: Double, longitude: Double) = viewModelScope.launch {
+        val userLocation = UserLocation(
+            latitude = latitude,
+            longitude = longitude
+        )
+        userLocationDao.insert(userLocation)
+    }
+
+    fun clearUserLocationHistory() = viewModelScope.launch {
+        userLocationDao.deleteAll()
     }
 
     private fun calculateNewEaseFactor(oldEaseFactor: Float, quality: Int): Float {

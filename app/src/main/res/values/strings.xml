@@ -34,4 +34,5 @@
     <string name="empty_deck_message">Crie seu primeiro deck para começar a estudar!</string>
     <string name="empty_flashcards_title">Nenhum flashcard encontrado</string>
     <string name="empty_flashcards_message">Adicione flashcards a este deck para começar a estudar!</string>
-</resources> 
+    <string name="environments">Ambientes</string>
+</resources>

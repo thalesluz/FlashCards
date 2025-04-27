@@ -40,12 +40,23 @@ class DeckActivity : AppCompatActivity() {
     }
 
     private fun setupBottomNavigation() {
+        // Definindo explicitamente que o item selecionado é o de Decks
+        binding.bottomNavigation.selectedItemId = R.id.navigation_decks
+        
         binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.navigation_home -> true
+                R.id.navigation_home -> {
+                    startActivity(Intent(this, HomeActivity::class.java))
+                    finish() // Finaliza a atividade atual para evitar acúmulo na pilha
+                    true
+                }
                 R.id.navigation_decks -> true
                 R.id.navigation_exercise -> {
                     startExercise()
+                    true
+                }
+                R.id.navigation_environments -> {
+                    startActivity(Intent(this, EnvironmentsActivity::class.java))
                     true
                 }
                 else -> false

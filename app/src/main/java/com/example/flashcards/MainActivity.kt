@@ -61,10 +61,22 @@ class MainActivity : AppCompatActivity() {
     private fun setupBottomNavigation() {
         binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.navigation_home -> true
-                R.id.navigation_decks -> true
+                R.id.navigation_home -> {
+                    startActivity(Intent(this, HomeActivity::class.java))
+                    finish() // Finalizando a atividade atual para evitar problemas de navegação
+                    true
+                }
+                R.id.navigation_decks -> {
+                    startActivity(Intent(this, DeckActivity::class.java))
+                    finish() // Finalizando a atividade atual para evitar problemas de navegação
+                    true
+                }
                 R.id.navigation_exercise -> {
                     startExercise()
+                    true
+                }
+                R.id.navigation_environments -> {
+                    startActivity(Intent(this, EnvironmentsActivity::class.java))
                     true
                 }
                 else -> false
@@ -338,17 +350,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestUserLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1001)
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // Solicita permissão de forma silenciosa sem exigir uma confirmação imediata
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), 1001)
             return
         }
+        
         fusedLocationClient.lastLocation.addOnSuccessListener { location ->
             if (location != null) {
                 val latitude = location.latitude
                 val longitude = location.longitude
-                Toast.makeText(this, "Localização: $latitude, $longitude", Toast.LENGTH_LONG).show()
-            } else {
-                Toast.makeText(this, "Não foi possível obter a localização", Toast.LENGTH_SHORT).show()
+                // Salva no banco de dados local sem mostrar Toast
+                viewModel.saveUserLocation(latitude, longitude)
             }
         }
     }
@@ -376,7 +389,7 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             R.id.action_environments -> {
-                Toast.makeText(this, "Ambientes selecionado", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, EnvironmentsActivity::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)

@@ -30,6 +30,7 @@ class ExerciseSelectionActivity : AppCompatActivity() {
         deckViewModel = ViewModelProvider(this)[DeckViewModel::class.java]
         setupRecyclerView()
         setupAllDecksButton()
+        setupBottomNavigation()
         observeDecks()
     }
 
@@ -78,6 +79,30 @@ class ExerciseSelectionActivity : AppCompatActivity() {
         intent.putExtra("deckId", deckId)
         intent.putExtra("deckName", deckName)
         startActivity(intent)
+    }
+
+    private fun setupBottomNavigation() {
+        binding.bottomNavigation.selectedItemId = R.id.navigation_exercise
+        binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.navigation_home -> {
+                    startActivity(Intent(this, HomeActivity::class.java))
+                    finish() // Finalizando a atividade atual para evitar problemas de navegação
+                    true
+                }
+                R.id.navigation_decks -> {
+                    startActivity(Intent(this, DeckActivity::class.java))
+                    finish() // Finalizando a atividade atual para evitar problemas de navegação
+                    true
+                }
+                R.id.navigation_exercise -> true
+                R.id.navigation_environments -> {
+                    startActivity(Intent(this, EnvironmentsActivity::class.java))
+                    true
+                }
+                else -> false
+            }
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {
