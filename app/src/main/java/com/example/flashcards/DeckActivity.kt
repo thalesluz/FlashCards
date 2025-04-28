@@ -52,11 +52,13 @@ class DeckActivity : AppCompatActivity() {
                 }
                 R.id.navigation_decks -> true
                 R.id.navigation_exercise -> {
-                    startExercise()
+                    startActivity(Intent(this, ExerciseSelectionActivity::class.java))
+                    finish() // Finaliza a atividade atual para evitar acúmulo na pilha
                     true
                 }
                 R.id.navigation_environments -> {
                     startActivity(Intent(this, EnvironmentsActivity::class.java))
+                    finish() // Finaliza a atividade atual para evitar acúmulo na pilha
                     true
                 }
                 else -> false
@@ -67,6 +69,7 @@ class DeckActivity : AppCompatActivity() {
     private fun startExercise() {
         val intent = Intent(this, ExerciseSelectionActivity::class.java)
         startActivity(intent)
+        finish() // Finaliza a atividade atual para evitar acúmulo na pilha
     }
 
     private fun setupRecyclerView() {

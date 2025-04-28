@@ -73,10 +73,12 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.navigation_exercise -> {
                     startExercise()
+                    finish() // Finalizando a atividade atual para evitar problemas de navegação
                     true
                 }
                 R.id.navigation_environments -> {
                     startActivity(Intent(this, EnvironmentsActivity::class.java))
+                    finish() // Finalizando a atividade atual para evitar problemas de navegação
                     true
                 }
                 else -> false
@@ -390,6 +392,7 @@ class MainActivity : AppCompatActivity() {
             }
             R.id.action_environments -> {
                 startActivity(Intent(this, EnvironmentsActivity::class.java))
+                finish() // Finalizando a atividade atual para evitar problemas de navegação
                 true
             }
             else -> super.onOptionsItemSelected(item)

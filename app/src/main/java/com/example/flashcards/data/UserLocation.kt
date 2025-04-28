@@ -7,6 +7,8 @@ import androidx.room.PrimaryKey
 data class UserLocation(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val name: String = "",
+    val iconName: String = "ic_location",
     val latitude: Double,
     val longitude: Double,
     val timestamp: Long = System.currentTimeMillis()

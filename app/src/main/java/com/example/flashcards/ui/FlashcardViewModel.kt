@@ -81,12 +81,31 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     // Métodos para gerenciar localização do usuário
-    fun saveUserLocation(latitude: Double, longitude: Double) = viewModelScope.launch {
+    fun saveUserLocation(name: String, iconName: String, latitude: Double, longitude: Double) = viewModelScope.launch {
         val userLocation = UserLocation(
+            name = name,
+            iconName = iconName,
             latitude = latitude,
             longitude = longitude
         )
         userLocationDao.insert(userLocation)
+    }
+
+    // Método sobrecarregado para salvar localização do usuário com apenas latitude e longitude
+    fun saveUserLocation(latitude: Double, longitude: Double) = viewModelScope.launch {
+        val userLocation = UserLocation(
+            name = "Localização automática",
+            iconName = "ic_location",
+            latitude = latitude,
+            longitude = longitude
+        )
+        userLocationDao.insert(userLocation)
+    }
+    
+    fun getAllUserLocations() = userLocationDao.getAllUserLocations()
+    
+    fun deleteUserLocation(id: Long) = viewModelScope.launch {
+        userLocationDao.deleteById(id)
     }
 
     fun clearUserLocationHistory() = viewModelScope.launch {

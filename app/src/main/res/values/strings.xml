@@ -35,4 +35,18 @@
     <string name="empty_flashcards_title">Nenhum flashcard encontrado</string>
     <string name="empty_flashcards_message">Adicione flashcards a este deck para começar a estudar!</string>
     <string name="environments">Ambientes</string>
+    
+    <!-- Strings para a tela de Ambientes -->
+    <string name="add_location">Adicionar Localização</string>
+    <string name="add_new_location">Adicionar nova localização</string>
+    <string name="location_name">Nome da localização</string>
+    <string name="select_icon">Selecione um ícone</string>
+    <string name="save_location">Salvar localização</string>
+    <string name="delete_location">Excluir localização</string>
+    <string name="no_locations">Nenhuma localização cadastrada</string>
+    <string name="location_coordinates">Lat: %1$.4f, Long: %2$.4f</string>
+    <string name="location_saved">Localização salva com sucesso</string>
+    <string name="location_deleted">Localização excluída com sucesso</string>
+    <string name="error_saving_location">Erro ao salvar localização</string>
+    <string name="error_location_permission">Permissão de localização necessária</string>
 </resources>
