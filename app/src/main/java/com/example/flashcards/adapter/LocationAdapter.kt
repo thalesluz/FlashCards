@@ -32,7 +32,10 @@ class LocationAdapter(
         RecyclerView.ViewHolder(binding.root) {
         
         fun bind(location: UserLocation) {
-            binding.locationName.text = location.name
+            // Remove "Ambientes" prefix if present in the location name
+            val displayName = location.name.replace("^Ambientes\\s*", "").trim()
+            binding.locationName.text = displayName
+            
             binding.locationCoordinates.text = String.format(
                 Locale.getDefault(),
                 context.getString(com.example.flashcards.R.string.location_coordinates),

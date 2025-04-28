@@ -47,18 +47,12 @@ class ExerciseActivity : AppCompatActivity() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.exercise_menu, menu)
-        return true
+        // Menu removido conforme solicitado
+        return false
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_shuffle -> {
-                shuffleFlashcards()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
+        return super.onOptionsItemSelected(item)
     }
 
     private fun shuffleFlashcards() {
@@ -98,11 +92,15 @@ class ExerciseActivity : AppCompatActivity() {
     private fun showEmptyState() {
         binding.exerciseContainer.visibility = View.GONE
         binding.emptyView.root.visibility = View.VISIBLE
+        binding.progressBar.visibility = View.GONE  // Esconde a barra de progresso no estado vazio
+        binding.counterText.visibility = View.GONE  // Esconde o contador também
     }
 
     private fun showCurrentFlashcard() {
         binding.exerciseContainer.visibility = View.VISIBLE
         binding.emptyView.root.visibility = View.GONE
+        binding.progressBar.visibility = View.VISIBLE  // Mostra a barra de progresso durante o exercício
+        binding.counterText.visibility = View.VISIBLE  // Mostra o contador durante o exercício
 
         val flashcard = flashcards[currentIndex]
         val progress = ((currentIndex + 1) * 100) / flashcards.size
