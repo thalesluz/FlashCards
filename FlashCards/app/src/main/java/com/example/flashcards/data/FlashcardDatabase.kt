@@ -6,12 +6,22 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = [Deck::class, Flashcard::class, UserLocation::class], version = 5, exportSchema = false)
+@Database(
+    entities = [
+        Deck::class,
+        Flashcard::class,
+        UserLocation::class,
+        WeeklyStats::class
+    ],
+    version = 2, // Incrementado de 1 para 2 devido às mudanças no esquema
+    exportSchema = true
+)
 @TypeConverters(Converters::class)
 abstract class FlashcardDatabase : RoomDatabase() {
-    abstract fun flashcardDao(): FlashcardDao
     abstract fun deckDao(): DeckDao
+    abstract fun flashcardDao(): FlashcardDao
     abstract fun userLocationDao(): UserLocationDao
+    abstract fun weeklyStatsDao(): WeeklyStatsDao
 
     companion object {
         @Volatile
@@ -24,7 +34,7 @@ abstract class FlashcardDatabase : RoomDatabase() {
                     FlashcardDatabase::class.java,
                     "flashcard_database"
                 )
-                .fallbackToDestructiveMigration() // Isso permite que o Room recrie as tabelas se a versão mudar
+                .fallbackToDestructiveMigration() // Adicionado para lidar com a migração
                 .build()
                 INSTANCE = instance
                 instance

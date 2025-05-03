@@ -1,20 +1,34 @@
 package com.example.flashcards
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.example.flashcards.data.FlashcardDatabase
+import com.example.flashcards.data.WeeklyStats
+import com.example.flashcards.data.WeeklyStatsRepository
 import com.example.flashcards.data.SyncManager
 import com.example.flashcards.databinding.ActivityHomeBinding
+import com.github.mikephil.charting.components.Legend
+import com.github.mikephil.charting.data.PieData
+import com.github.mikephil.charting.data.PieDataSet
+import com.github.mikephil.charting.data.PieEntry
+import com.github.mikephil.charting.formatter.PercentFormatter
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
 import java.net.UnknownHostException
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class HomeActivity : AppCompatActivity() {
     private lateinit var binding: ActivityHomeBinding
     private lateinit var syncManager: SyncManager
+    private lateinit var weeklyStatsRepository: WeeklyStatsRepository
     private var syncInProgress = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,10 +38,13 @@ class HomeActivity : AppCompatActivity() {
 
         // Inicializando o gerenciador de sincronização
         syncManager = SyncManager(this)
+        weeklyStatsRepository = WeeklyStatsRepository(FlashcardDatabase.getDatabase(this).weeklyStatsDao())
 
         setupBottomNavigation()
         setupStartStudyingButton()
         setupSyncButton()
+        setupCharts()
+        loadWeeklyStats()
         
         // Verificar se deve iniciar sincronização automática
         if (intent.getBooleanExtra("showSync", false)) {
@@ -77,6 +94,150 @@ class HomeActivity : AppCompatActivity() {
         binding.syncButton.setOnClickListener {
             syncData()
         }
+    }
+
+    private fun setupCharts() {
+        setupAccuracyChart()
+        setupTypeChart()
+    }
+
+    private fun setupAccuracyChart() {
+        val chart = binding.accuracyChart
+        chart.description.isEnabled = false
+        chart.setDrawHoleEnabled(true)
+        chart.setHoleColor(Color.WHITE)
+        chart.setTransparentCircleColor(Color.WHITE)
+        chart.setTransparentCircleAlpha(110)
+        chart.holeRadius = 58f
+        chart.transparentCircleRadius = 61f
+        chart.setDrawCenterText(true)
+        chart.rotationAngle = 0f
+        chart.isRotationEnabled = true
+        chart.isHighlightPerTapEnabled = true
+        chart.animateY(1000)
+        chart.legend.isEnabled = false
+    }
+
+    private fun setupTypeChart() {
+        val chart = binding.typeChart
+        chart.description.isEnabled = false
+        chart.setDrawHoleEnabled(true)
+        chart.setHoleColor(Color.WHITE)
+        chart.setTransparentCircleColor(Color.WHITE)
+        chart.setTransparentCircleAlpha(110)
+        chart.holeRadius = 58f
+        chart.transparentCircleRadius = 61f
+        chart.setDrawCenterText(true)
+        chart.rotationAngle = 0f
+        chart.isRotationEnabled = true
+        chart.isHighlightPerTapEnabled = true
+        chart.animateY(1000)
+        chart.legend.isEnabled = false
+    }
+
+    private fun updateCharts(stats: WeeklyStats?) {
+        if (stats == null) {
+            updateAccuracyChart(0, 0)
+            updateTypeChart(emptyMap())
+            return
+        }
+
+        // Atualizar gráfico de acurácia
+        updateAccuracyChart(stats.cardsCorrect, stats.cardsIncorrect)
+
+        // Atualizar gráfico de tipos de flashcards
+        val typeStats = mapOf(
+            "FV" to stats.frontBackCount,
+            "Omissão" to stats.clozeCount,
+            "Texto" to stats.textInputCount,
+            "ME" to stats.multipleChoiceCount,
+            "Básico" to stats.basicCount
+        )
+        updateTypeChart(typeStats)
+    }
+
+    private fun updateAccuracyChart(correct: Int, incorrect: Int) {
+        val entries = ArrayList<PieEntry>()
+        if (correct > 0) entries.add(PieEntry(correct.toFloat(), "Acertos"))
+        if (incorrect > 0) entries.add(PieEntry(incorrect.toFloat(), "Erros"))
+
+        val dataSet = PieDataSet(entries, "")
+        dataSet.sliceSpace = 3f
+        dataSet.selectionShift = 5f
+
+        // Cores para acertos e erros
+        val colors = ArrayList<Int>()
+        colors.add(Color.parseColor("#4CAF50")) // Verde para acertos
+        colors.add(Color.parseColor("#F44336")) // Vermelho para erros
+        dataSet.colors = colors
+
+        val data = PieData(dataSet)
+        data.setValueFormatter(PercentFormatter())
+        data.setValueTextSize(11f)
+        data.setValueTextColor(Color.WHITE)
+
+        binding.accuracyChart.data = data
+        binding.accuracyChart.invalidate()
+    }
+
+    private fun updateTypeChart(typeStats: Map<String, Int>) {
+        val entries = ArrayList<PieEntry>()
+        typeStats.forEach { (type, count) ->
+            if (count > 0) { // Só adiciona tipos que foram usados
+                entries.add(PieEntry(count.toFloat(), type))
+            }
+        }
+
+        val dataSet = PieDataSet(entries, "")
+        dataSet.sliceSpace = 3f
+        dataSet.selectionShift = 5f
+
+        // Cores para diferentes tipos de flashcards
+        val colors = ArrayList<Int>()
+        colors.add(Color.parseColor("#2196F3")) // Azul - Frente/Trás
+        colors.add(Color.parseColor("#FF9800")) // Laranja - Cloze
+        colors.add(Color.parseColor("#9C27B0")) // Roxo - Texto
+        colors.add(Color.parseColor("#4CAF50")) // Verde - Múltipla Escolha
+        colors.add(Color.parseColor("#F44336")) // Vermelho - Básico
+        dataSet.colors = colors
+
+        val data = PieData(dataSet)
+        data.setValueFormatter(PercentFormatter())
+        data.setValueTextSize(11f)
+        data.setValueTextColor(Color.WHITE)
+
+        binding.typeChart.data = data
+        binding.typeChart.invalidate()
+    }
+
+    private fun loadWeeklyStats() {
+        lifecycleScope.launch {
+            weeklyStatsRepository.getCurrentWeekStats().collect { stats ->
+                updateStatsUI(stats)
+                updateCharts(stats)
+            }
+        }
+    }
+
+    private fun updateStatsUI(stats: WeeklyStats?) {
+        if (stats == null) {
+            binding.cardsReviewedValue.text = "0"
+            binding.cardsCorrectValue.text = "0"
+            binding.cardsIncorrectValue.text = "0"
+            binding.successRateValue.text = "0%"
+            return
+        }
+
+        binding.cardsReviewedValue.text = stats.cardsReviewed.toString()
+        binding.cardsCorrectValue.text = stats.cardsCorrect.toString()
+        binding.cardsIncorrectValue.text = stats.cardsIncorrect.toString()
+
+        val successRate = if (stats.cardsReviewed > 0) {
+            (stats.cardsCorrect.toFloat() / stats.cardsReviewed.toFloat() * 100).toInt()
+        } else {
+            0
+        }
+        binding.successRateValue.text = "$successRate%"
     }
 
     private fun syncData() {

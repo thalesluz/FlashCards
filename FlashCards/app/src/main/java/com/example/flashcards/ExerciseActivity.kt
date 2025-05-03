@@ -15,6 +15,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.example.flashcards.data.Flashcard
 import com.example.flashcards.data.FlashcardType
+import com.example.flashcards.data.FlashcardDatabase
+import com.example.flashcards.data.WeeklyStatsRepository
 import com.example.flashcards.databinding.ActivityExerciseBinding
 import com.example.flashcards.ui.FlashcardViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -26,6 +28,7 @@ import com.google.gson.reflect.TypeToken
 class ExerciseActivity : AppCompatActivity() {
     private lateinit var binding: ActivityExerciseBinding
     private lateinit var viewModel: FlashcardViewModel
+    private lateinit var weeklyStatsRepository: WeeklyStatsRepository
     private var currentDeckId: Long = -1
     private var currentDeckName: String = ""
     private var flashcards: List<Flashcard> = emptyList()
@@ -45,6 +48,7 @@ class ExerciseActivity : AppCompatActivity() {
         supportActionBar?.setDisplayShowHomeEnabled(true)
 
         viewModel = ViewModelProvider(this)[FlashcardViewModel::class.java]
+        weeklyStatsRepository = WeeklyStatsRepository(FlashcardDatabase.getDatabase(this).weeklyStatsDao())
         setupExercise()
     }
 
@@ -206,12 +210,20 @@ class ExerciseActivity : AppCompatActivity() {
             FlashcardType.BASIC -> userAnswer.equals(flashcard.back, ignoreCase = true)
         }
 
+        updateStats(flashcard, isCorrect)
+
         if (isCorrect) {
             correctAnswers++
             showCorrectFeedback()
         } else {
             wrongAnswers++
             showWrongFeedback(flashcard)
+        }
+    }
+
+    private fun updateStats(flashcard: Flashcard, cardCorrect: Boolean) {
+        lifecycleScope.launch {
+            weeklyStatsRepository.updateStats(flashcard.type, cardCorrect)
         }
     }
 

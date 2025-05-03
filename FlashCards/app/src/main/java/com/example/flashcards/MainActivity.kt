@@ -256,7 +256,7 @@ class MainActivity : AppCompatActivity() {
                     "Frente e Verso" -> FlashcardType.FRONT_BACK
                     "Omissão de palavras" -> FlashcardType.CLOZE
                     "Digite a resposta" -> FlashcardType.TEXT_INPUT
-                    "Múltipla escolha" -> FlashcardType.MULTIPLE_CHOICE
+                    "ME" -> FlashcardType.MULTIPLE_CHOICE
                     else -> FlashcardType.FRONT_BACK
                 }
 
