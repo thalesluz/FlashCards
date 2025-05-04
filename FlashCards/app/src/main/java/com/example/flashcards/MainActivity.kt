@@ -83,14 +83,6 @@ class MainActivity : AppCompatActivity() {
                     finish() // Finalizando a atividade atual para evitar problemas de navegação
                     true
                 }
-                R.id.navigation_sync -> {
-                    // Redireciona para HomeActivity que tem a funcionalidade de sincronização
-                    val intent = Intent(this, HomeActivity::class.java)
-                    intent.putExtra("showSync", true)
-                    startActivity(intent)
-                    finish()
-                    true
-                }
                 else -> false
             }
         }

@@ -130,14 +130,6 @@ class DeckActivity : AppCompatActivity() {
                     finish() // Finaliza a atividade atual para evitar acúmulo na pilha
                     true
                 }
-                R.id.navigation_sync -> {
-                    // Redireciona para HomeActivity com flag para mostrar sincronização
-                    val intent = Intent(this, HomeActivity::class.java)
-                    intent.putExtra("showSync", true)
-                    startActivity(intent)
-                    finish()
-                    true
-                }
                 else -> false
             }
         }

@@ -74,10 +74,6 @@ class HomeActivity : AppCompatActivity() {
                     finish() // Finalizando a atividade atual para evitar problemas de navegação
                     true
                 }
-                R.id.navigation_sync -> {
-                    syncData()
-                    true
-                }
                 else -> false
             }
         }
