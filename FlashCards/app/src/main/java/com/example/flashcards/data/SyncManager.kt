@@ -161,27 +161,99 @@ class SyncManager(private val context: Context) {
     private suspend fun syncFlashcardsToRemote() = withContext(Dispatchers.IO) {
         Log.d(TAG, "Sincronizando flashcards para o remoto")
         
-        // Obter todos os flashcards locais
-        val localFlashcards = database.flashcardDao().getAllFlashcardsSync()
-        
-        for (flashcard in localFlashcards) {
-            try {
-                // Verificar se já existe no Supabase por ID - usar Long diretamente
-                val remoteId = flashcard.id
-                
-                try {
-                    // Assumindo que temos um método para verificar se existe
-                    // Isso é uma simplificação, você precisaria implementar uma lógica para verificar se o flashcard existe
-                    supabaseRepository.updateFlashcard(flashcard)
-                    Log.d(TAG, "Flashcard atualizado no remoto: ${flashcard.id}")
-                } catch (e: Exception) {
-                    // Se não existe no remoto, cria um novo
-                    supabaseRepository.createFlashcard(flashcard)
-                    Log.d(TAG, "Flashcard criado no remoto: ${flashcard.id}")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Erro ao sincronizar flashcard ${flashcard.id} para o remoto", e)
+        try {
+            // Verificar se temos o mapeamento de IDs
+            if (remoteToLocalIdMap.isEmpty()) {
+                // Se não tivermos o mapeamento, precisamos recriar
+                syncDecksToRemote() // Isso deve recriar o mapeamento
             }
+            
+            // Criar mapeamento inverso para busca eficiente: ID local -> ID remoto
+            val localToRemoteIdMap = remoteToLocalIdMap.entries.associate { (remoteId, localId) -> localId to remoteId }
+            Log.d(TAG, "Mapeamento de IDs locais para remotos: $localToRemoteIdMap")
+            
+            // Obter todos os flashcards do Supabase para verificar se já existem
+            val remoteFlashcards = supabaseRepository.fetchAllFlashcards()
+            Log.d(TAG, "Encontrados ${remoteFlashcards.size} flashcards no servidor")
+            
+            // Mapear flashcards remotos para facilitar busca
+            val remoteFlashcardsMap = remoteFlashcards.associate { it.id to it }
+            
+            // Mapear flashcards remotos por conteúdo para verificar duplicação
+            val remoteFlashcardsByContent = remoteFlashcards.groupBy { 
+                "${it.deck_id}||${it.front}||${it.back}||${it.type}" 
+            }
+            
+            // Obter todos os flashcards locais
+            val localFlashcards = database.flashcardDao().getAllFlashcardsSync()
+            Log.d(TAG, "Sincronizando ${localFlashcards.size} flashcards locais para o servidor")
+            
+            var createdCount = 0
+            var updatedCount = 0
+            var skippedCount = 0
+            
+            for (flashcard in localFlashcards) {
+                try {
+                    // Verificar se o deck deste flashcard precisa ser sincronizado
+                    val remoteDeckId = localToRemoteIdMap[flashcard.deckId]
+                    if (remoteDeckId == null) {
+                        Log.w(TAG, "Ignorando flashcard ${flashcard.id}: o deck local ID=${flashcard.deckId} não está mapeado para nenhum deck remoto")
+                        skippedCount++
+                        continue
+                    }
+                    
+                    // Gerar chave de conteúdo para verificar duplicação
+                    val contentKey = "${remoteDeckId}||${flashcard.front}||${flashcard.back}||${flashcard.type.name.lowercase()}"
+                    
+                    // Verificar se já existe no remoto por ID
+                    val existingRemoteById = if (flashcard.id > 0) remoteFlashcardsMap[flashcard.id] else null
+                    
+                    // Verificar se já existe no remoto por conteúdo
+                    val existingRemoteByContent = remoteFlashcardsByContent[contentKey]?.firstOrNull()
+                    
+                    when {
+                        // Caso 1: Já existe no Supabase com o mesmo ID
+                        existingRemoteById != null -> {
+                            // Atualizar o flashcard existente, garantindo que use o deck_id correto
+                            val remoteFlashcard = flashcard.copy(deckId = remoteDeckId)
+                            supabaseRepository.updateFlashcard(remoteFlashcard)
+                            Log.d(TAG, "Flashcard atualizado no remoto por ID: ${flashcard.id}")
+                            updatedCount++
+                        }
+                        
+                        // Caso 2: Já existe no Supabase com conteúdo similar
+                        existingRemoteByContent != null -> {
+                            Log.d(TAG, "Flashcard com conteúdo similar encontrado no remoto: ${existingRemoteByContent.id}")
+                            // Salvar o mapeamento para uso futuro
+                            remoteToLocalIdMap[existingRemoteByContent.id] = flashcard.id
+                            
+                            // Atualizar se necessário (p.ex., se há novos dados de revisão)
+                            val updatedFlashcard = flashcard.copy(id = existingRemoteByContent.id, deckId = remoteDeckId)
+                            supabaseRepository.updateFlashcard(updatedFlashcard)
+                            Log.d(TAG, "Flashcard atualizado no remoto por conteúdo: ${existingRemoteByContent.id}")
+                            updatedCount++
+                        }
+                        
+                        // Caso 3: É um flashcard novo para o Supabase
+                        else -> {
+                            // Garantir que use o deck_id correto para o Supabase
+                            val newFlashcard = flashcard.copy(deckId = remoteDeckId)
+                            val result = supabaseRepository.createFlashcard(newFlashcard)
+                            Log.d(TAG, "Novo flashcard criado no remoto: ${result.id}")
+                            // Salvar o mapeamento para uso futuro
+                            remoteToLocalIdMap[result.id] = flashcard.id
+                            createdCount++
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Erro ao sincronizar flashcard ${flashcard.id} para o remoto", e)
+                }
+            }
+            
+            Log.d(TAG, "Sincronização de flashcards para o remoto concluída: $createdCount criados, $updatedCount atualizados, $skippedCount ignorados")
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao sincronizar flashcards para o remoto", e)
+            throw e
         }
     }
     
@@ -318,6 +390,15 @@ class SyncManager(private val context: Context) {
             }
             
             Log.d(TAG, "Recebidos ${allRemoteFlashcards.size} flashcards do servidor")
+
+            // Obter todos os flashcards locais para verificações de duplicidade
+            val allLocalFlashcards = database.flashcardDao().getAllFlashcardsSync()
+            
+            // Criar mapeamentos para busca eficiente por ID e conteúdo
+            val localFlashcardsByRemoteId = allLocalFlashcards.filter { it.id > 0 }.associateBy { it.id }
+            val localFlashcardsByContent = allLocalFlashcards.associateBy { 
+                "${it.deckId}||${it.front}||${it.back}||${it.type.name}" 
+            }
             
             var insertedCount = 0
             var updatedCount = 0
@@ -340,29 +421,56 @@ class SyncManager(private val context: Context) {
                     // Modificar o flashcard para usar o ID local do deck
                     val flashcard = convertRemoteToLocalFlashcard(remoteFlashcard, localDeckId)
                     
-                    // Verificar se o flashcard já existe 
-                    val existingFlashcard = database.flashcardDao().getById(flashcard.id)
+                    // Gerar a chave de conteúdo para verificar duplicação baseada no conteúdo
+                    val contentKey = "${flashcard.deckId}||${flashcard.front}||${flashcard.back}||${flashcard.type.name}"
                     
-                    if (existingFlashcard != null) {
-                        // Atualizar o flashcard existente apenas se pertence ao mesmo deck
-                        if (existingFlashcard.deckId == localDeckId) {
-                            database.flashcardDao().update(flashcard)
-                            Log.d(TAG, "Flashcard atualizado: id=${flashcard.id}, deck=${flashcard.deckId}")
+                    // Verificar se o flashcard já existe com o mesmo ID
+                    val existingFlashcardById = localFlashcardsByRemoteId[flashcard.id]
+                    
+                    // Verificar se um flashcard com conteúdo similar já existe
+                    val existingFlashcardByContent = localFlashcardsByContent[contentKey]
+                    
+                    when {
+                        // Caso 1: Existe um flashcard com o mesmo ID remoto
+                        existingFlashcardById != null -> {
+                            // Atualizar o flashcard existente se for o mesmo deck
+                            if (existingFlashcardById.deckId == localDeckId) {
+                                database.flashcardDao().update(flashcard)
+                                Log.d(TAG, "Flashcard atualizado por ID: id=${flashcard.id}, deck=${flashcard.deckId}")
+                                updatedCount++
+                            } else {
+                                Log.w(TAG, "Conflito de ID: Flashcard ID=${flashcard.id} existe em dois decks diferentes")
+                                // Verificar se conteúdo já existe antes de criar novo
+                                if (existingFlashcardByContent == null) {
+                                    val newFlashcard = flashcard.copy(id = 0)
+                                    val newId = database.flashcardDao().insert(newFlashcard)
+                                    Log.d(TAG, "Flashcard inserido com novo ID: ${newId} (conflito de ID)")
+                                    insertedCount++
+                                } else {
+                                    Log.d(TAG, "Flashcard similar já existe, ignorando duplicata: ${existingFlashcardByContent.id}")
+                                    skippedCount++
+                                }
+                            }
+                        }
+                        
+                        // Caso 2: Existe um flashcard com conteúdo similar
+                        existingFlashcardByContent != null -> {
+                            Log.d(TAG, "Flashcard com conteúdo similar encontrado: ${existingFlashcardByContent.id}")
+                            // Atualizar se houver alguma diferença em outros campos (ex: ease_factor, interval)
+                            val updatedFlashcard = flashcard.copy(id = existingFlashcardByContent.id)
+                            database.flashcardDao().update(updatedFlashcard)
+                            Log.d(TAG, "Flashcard atualizado por conteúdo: ${existingFlashcardByContent.id}")
                             updatedCount++
-                        } else {
-                            Log.w(TAG, "Conflito de flashcard: ID=${flashcard.id} existe em dois decks diferentes")
-                            // Criar como novo flashcard
+                        }
+                        
+                        // Caso 3: É um flashcard completamente novo
+                        else -> {
+                            // Inserir como novo com ID=0 para que o Room atribua um novo ID
                             val newFlashcard = flashcard.copy(id = 0)
                             val newId = database.flashcardDao().insert(newFlashcard)
-                            Log.d(TAG, "Flashcard inserido com novo ID: ${newId} (original: ${flashcard.id})")
+                            Log.d(TAG, "Novo flashcard inserido: ID=${newId}")
                             insertedCount++
                         }
-                    } else {
-                        // Inserir como novo flashcard com id=0 para que o Room atribua um novo ID
-                        val newFlashcard = flashcard.copy(id = 0)
-                        val newId = database.flashcardDao().insert(newFlashcard)
-                        Log.d(TAG, "Novo flashcard inserido: ID=${newId}")
-                        insertedCount++
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Erro ao processar flashcard ${remoteFlashcard.id}: ${e.message}", e)

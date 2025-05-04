@@ -30,8 +30,10 @@ interface FlashcardDao {
     fun getDueFlashcardsForDeck(deckId: Long, date: Long): Flow<List<Flashcard>>
 
     // Operações CRUD
+    
+    // Inserir flashcard e retornar o ID gerado pelo Room
     @Insert
-    suspend fun insert(flashcard: Flashcard)
+    suspend fun insert(flashcard: Flashcard): Long
 
     @Update
     suspend fun update(flashcard: Flashcard)

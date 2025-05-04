@@ -231,43 +231,73 @@ class SupabaseRepository {
     }
     
     suspend fun createFlashcard(flashcard: Flashcard): RemoteFlashcard = withContext(Dispatchers.IO) {
-        // Converter para RemoteFlashcard (que agora usa Long)
-        val tempRemoteFlashcard = convertToRemoteFlashcard(flashcard)
+        try {
+            Log.d(TAG, "Criando flashcard no servidor: deck_id=${flashcard.deckId}, tipo=${flashcard.type}")
+            
+            // Converter para RemoteFlashcard
+            val tempRemoteFlashcard = convertToRemoteFlashcard(flashcard)
 
-        // Criar um Map sem o campo 'id' para enviar ao Supabase
-        val flashcardData = mutableMapOf<String, Any?>(
-            "deck_id" to tempRemoteFlashcard.deck_id,
-            "type" to tempRemoteFlashcard.type,
-            "front" to tempRemoteFlashcard.front,
-            "back" to tempRemoteFlashcard.back
-            // Adicionar outros campos conforme necessário, exceto 'id' e 'created_at'
-        )
-        tempRemoteFlashcard.cloze_text?.let { flashcardData["cloze_text"] = it }
-        tempRemoteFlashcard.cloze_answer?.let { flashcardData["cloze_answer"] = it }
-        tempRemoteFlashcard.options?.let { flashcardData["options"] = it } // Enviar a lista diretamente
-        tempRemoteFlashcard.correct_option_index?.let { flashcardData["correct_option_index"] = it }
-        tempRemoteFlashcard.last_reviewed?.let { flashcardData["last_reviewed"] = it }
-        tempRemoteFlashcard.next_review_date?.let { flashcardData["next_review_date"] = it }
-        tempRemoteFlashcard.ease_factor?.let { flashcardData["ease_factor"] = it }
-        tempRemoteFlashcard.interval?.let { flashcardData["interval"] = it }
-        tempRemoteFlashcard.repetitions?.let { flashcardData["repetitions"] = it }
-        
-        client.post(SupabaseConfig.SUPABASE_URL + SupabaseConfig.FLASHCARDS_ENDPOINT) {
-            contentType(ContentType.Application.Json)
-            header("Prefer", "return=representation")
-            setBody(flashcardData) // Enviar o Map
-        }.body()
+            // Criar um Map sem o campo 'id' para enviar ao Supabase
+            val flashcardData = mutableMapOf<String, Any?>(
+                "deck_id" to tempRemoteFlashcard.deck_id,
+                "type" to tempRemoteFlashcard.type,
+                "front" to tempRemoteFlashcard.front,
+                "back" to tempRemoteFlashcard.back
+                // Adicionar outros campos conforme necessário, exceto 'id' e 'created_at'
+            )
+            tempRemoteFlashcard.cloze_text?.let { flashcardData["cloze_text"] = it }
+            tempRemoteFlashcard.cloze_answer?.let { flashcardData["cloze_answer"] = it }
+            tempRemoteFlashcard.options?.let { flashcardData["options"] = it } // Enviar a lista diretamente
+            tempRemoteFlashcard.correct_option_index?.let { flashcardData["correct_option_index"] = it }
+            tempRemoteFlashcard.last_reviewed?.let { flashcardData["last_reviewed"] = it }
+            tempRemoteFlashcard.next_review_date?.let { flashcardData["next_review_date"] = it }
+            tempRemoteFlashcard.ease_factor?.let { flashcardData["ease_factor"] = it }
+            tempRemoteFlashcard.interval?.let { flashcardData["interval"] = it }
+            tempRemoteFlashcard.repetitions?.let { flashcardData["repetitions"] = it }
+            
+            Log.d(TAG, "Dados a serem enviados: $flashcardData")
+            
+            val response = client.post(SupabaseConfig.SUPABASE_URL + SupabaseConfig.FLASHCARDS_ENDPOINT) {
+                contentType(ContentType.Application.Json)
+                header("Prefer", "return=representation")
+                setBody(flashcardData) // Enviar o Map
+            }
+            
+            Log.d(TAG, "Resposta do servidor: ${response.status}")
+            
+            val result = response.body<RemoteFlashcard>()
+            Log.d(TAG, "Flashcard criado com sucesso: ID=${result.id}, deck_id=${result.deck_id}")
+            
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao criar flashcard no servidor: ${e.message}", e)
+            throw e
+        }
     }
     
     suspend fun updateFlashcard(flashcard: Flashcard): RemoteFlashcard = withContext(Dispatchers.IO) {
-        // Usar conversão direta para RemoteFlashcard (com Long)
-        val remoteFlashcard = convertToRemoteFlashcard(flashcard)
-        
-        // Usar flashcard.id (Long) diretamente na query
-        client.put(SupabaseConfig.SUPABASE_URL + SupabaseConfig.FLASHCARDS_ENDPOINT + "?id=eq.${flashcard.id}") {
-            contentType(ContentType.Application.Json)
-            setBody(remoteFlashcard)
-        }.body()
+        try {
+            Log.d(TAG, "Atualizando flashcard no servidor: id=${flashcard.id}, deck_id=${flashcard.deckId}")
+            
+            // Usar conversão direta para RemoteFlashcard
+            val remoteFlashcard = convertToRemoteFlashcard(flashcard)
+            
+            Log.d(TAG, "Dados a serem enviados: front=${remoteFlashcard.front.take(20)}..., deck_id=${remoteFlashcard.deck_id}")
+            
+            val response = client.put(SupabaseConfig.SUPABASE_URL + SupabaseConfig.FLASHCARDS_ENDPOINT + "?id=eq.${flashcard.id}") {
+                contentType(ContentType.Application.Json)
+                setBody(remoteFlashcard)
+            }
+            
+            Log.d(TAG, "Resposta do servidor: ${response.status}")
+            val result = response.body<RemoteFlashcard>()
+            Log.d(TAG, "Flashcard atualizado com sucesso: ID=${result.id}, deck_id=${result.deck_id}")
+            
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao atualizar flashcard no servidor: ${e.message}", e)
+            throw e
+        }
     }
     
     // id já é Long, query está ok
