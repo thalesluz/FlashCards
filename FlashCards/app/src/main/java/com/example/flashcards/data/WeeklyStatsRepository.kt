@@ -15,6 +15,8 @@ class WeeklyStatsRepository(private val weeklyStatsDao: WeeklyStatsDao) {
         if (stats == null) {
             stats = WeeklyStats(weekStartDate = currentWeekStart)
             weeklyStatsDao.insert(stats)
+            // Recupera o registro recém-inserido para garantir que temos o ID correto
+            stats = weeklyStatsDao.getCurrentWeekStatsSync(currentWeekStart) ?: stats
         }
 
         stats = stats.copy(
