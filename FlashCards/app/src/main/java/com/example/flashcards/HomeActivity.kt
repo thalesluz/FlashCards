@@ -2,6 +2,7 @@ package com.example.flashcards
 
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -160,6 +161,12 @@ class HomeActivity : AppCompatActivity() {
         val dataSet = PieDataSet(entries, "")
         dataSet.sliceSpace = 3f
         dataSet.selectionShift = 5f
+        dataSet.valueTextColor = Color.BLACK
+        dataSet.valueTextSize = 11f
+        dataSet.valueLineColor = Color.BLACK
+        dataSet.valueLinePart1Length = 0.4f
+        dataSet.valueLinePart2Length = 0.4f
+        dataSet.setDrawValues(true)
 
         // Cores para acertos e erros
         val colors = ArrayList<Int>()
@@ -170,9 +177,15 @@ class HomeActivity : AppCompatActivity() {
         val data = PieData(dataSet)
         data.setValueFormatter(PercentFormatter())
         data.setValueTextSize(11f)
-        data.setValueTextColor(Color.WHITE)
+        data.setValueTextColor(Color.BLACK)
+        data.setValueTypeface(Typeface.DEFAULT_BOLD)
 
         binding.accuracyChart.data = data
+        binding.accuracyChart.legend.textColor = Color.BLACK
+        binding.accuracyChart.legend.typeface = Typeface.DEFAULT_BOLD
+        binding.accuracyChart.setEntryLabelColor(Color.BLACK)
+        binding.accuracyChart.setEntryLabelTextSize(12f)
+        binding.accuracyChart.setEntryLabelTypeface(Typeface.DEFAULT_BOLD)
         binding.accuracyChart.invalidate()
     }
 
@@ -187,6 +200,12 @@ class HomeActivity : AppCompatActivity() {
         val dataSet = PieDataSet(entries, "")
         dataSet.sliceSpace = 3f
         dataSet.selectionShift = 5f
+        dataSet.valueTextColor = Color.BLACK
+        dataSet.valueTextSize = 11f
+        dataSet.valueLineColor = Color.BLACK
+        dataSet.valueLinePart1Length = 0.4f
+        dataSet.valueLinePart2Length = 0.4f
+        dataSet.setDrawValues(true)
 
         // Cores para diferentes tipos de flashcards
         val colors = ArrayList<Int>()
@@ -200,9 +219,15 @@ class HomeActivity : AppCompatActivity() {
         val data = PieData(dataSet)
         data.setValueFormatter(PercentFormatter())
         data.setValueTextSize(11f)
-        data.setValueTextColor(Color.WHITE)
+        data.setValueTextColor(Color.BLACK)
+        data.setValueTypeface(Typeface.DEFAULT_BOLD)
 
         binding.typeChart.data = data
+        binding.typeChart.legend.textColor = Color.BLACK
+        binding.typeChart.legend.typeface = Typeface.DEFAULT_BOLD
+        binding.typeChart.setEntryLabelColor(Color.BLACK)
+        binding.typeChart.setEntryLabelTextSize(12f)
+        binding.typeChart.setEntryLabelTypeface(Typeface.DEFAULT_BOLD)
         binding.typeChart.invalidate()
     }
 
