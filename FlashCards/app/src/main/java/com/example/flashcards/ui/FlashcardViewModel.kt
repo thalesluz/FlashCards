@@ -64,6 +64,10 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
         repository.deleteAllForDeck(deckId)
     }
 
+    suspend fun getFlashcardsForDeckSync(deckId: Long): List<Flashcard> {
+        return repository.getFlashcardsForDeckSync(deckId)
+    }
+
     fun calculateNextReview(flashcard: Flashcard, quality: Int): Flashcard {
         val now = System.currentTimeMillis()
         val newEaseFactor = calculateNewEaseFactor(flashcard.easeFactor, quality)

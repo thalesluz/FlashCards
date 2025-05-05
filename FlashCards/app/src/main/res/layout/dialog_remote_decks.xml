@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="0dp"
+    android:background="@android:color/white">
+
+    <!-- Cabeçalho com estilo aprimorado -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/headerCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardBackgroundColor="#6200EE"
+        app:cardCornerRadius="0dp"
+        app:cardElevation="4dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/titleText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Decks Disponíveis Online"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white" />
+
+            <TextView
+                android:id="@+id/descriptionText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Selecione os decks que deseja adicionar:"
+                android:textColor="@android:color/white"
+                android:alpha="0.8"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Conteúdo principal com lista de decks -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/remoteDecksRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="0dp"
+        android:padding="8dp"
+        android:clipToPadding="false"
+        android:background="#F5F5F5"
+        app:layout_constraintTop_toBottomOf="@id/headerCard"
+        app:layout_constraintBottom_toTopOf="@id/buttonsLayout"
+        app:layout_constraintHeight_min="200dp"
+        app:layout_constraintHeight_max="350dp" />
+
+    <!-- Indicador de progresso centralizado -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:indeterminateTint="#6200EE"
+        app:layout_constraintBottom_toBottomOf="@id/remoteDecksRecyclerView"
+        app:layout_constraintEnd_toEndOf="@id/remoteDecksRecyclerView"
+        app:layout_constraintStart_toStartOf="@id/remoteDecksRecyclerView"
+        app:layout_constraintTop_toTopOf="@id/remoteDecksRecyclerView" />
+
+    <!-- Mensagem de lista vazia com ícone -->
+    <LinearLayout
+        android:id="@+id/emptyView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/remoteDecksRecyclerView"
+        app:layout_constraintTop_toTopOf="@id/remoteDecksRecyclerView">
+
+        <ImageView
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:alpha="0.6"
+            android:src="@android:drawable/ic_menu_search"
+            android:tint="#757575" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:text="Nenhum deck disponível para importação"
+            android:textColor="#757575"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <!-- Barra de botões com estilo aprimorado -->
+    <LinearLayout
+        android:id="@+id/buttonsLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="#FFFFFF"
+        android:elevation="8dp"
+        app:layout_constraintTop_toBottomOf="@id/remoteDecksRecyclerView"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <Button
+            android:id="@+id/cancelButton"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#757575"
+            android:text="CANCELAR" />
+
+        <Button
+            android:id="@+id/importButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:backgroundTint="#6200EE"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:text="IMPORTAR" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

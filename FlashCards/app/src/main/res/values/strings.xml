@@ -35,6 +35,8 @@
     <string name="empty_flashcards_title">Nenhum flashcard encontrado</string>
     <string name="empty_flashcards_message">Adicione flashcards a este deck para começar a estudar!</string>
     <string name="environments">Ambientes</string>
+    <string name="export_to_supabase">Exportar para Supabase</string>
+    <string name="more_options">Mais Opções</string>
     
     <!-- Strings para a tela de Ambientes -->
     <string name="add_location">Adicionar Localização</string>

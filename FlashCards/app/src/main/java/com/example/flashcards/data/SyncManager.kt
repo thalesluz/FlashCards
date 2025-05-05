@@ -615,8 +615,251 @@ class SyncManager(private val context: Context) {
             
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Erro ao excluir todos os decks: ${e.message}", e)
+            Log.e(TAG, "Erro ao excluir todos os decks: ${e.message}")
             false
+        }
+    }
+
+    /**
+     * Busca decks disponíveis remotamente que ainda não existem localmente.
+     * @return Lista de decks remotos que ainda não foram importados para o dispositivo
+     */
+    suspend fun fetchAvailableRemoteDecks(): List<RemoteDeck> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Buscando decks disponíveis remotamente")
+            
+            // Buscar todos os decks do Supabase
+            Log.d(TAG, "Conectando ao servidor Supabase...")
+            val remoteDecks = try {
+                supabaseRepository.fetchAllDecks()
+            } catch (e: Exception) {
+                Log.e(TAG, "Erro ao conectar com o Supabase: ${e.message}", e)
+                Log.e(TAG, "Detalhes do erro: ${e.stackTraceToString()}")
+                throw Exception("Erro de conexão com o servidor: ${e.message}")
+            }
+            
+            Log.d(TAG, "Conexão com Supabase bem-sucedida")
+            
+            if (remoteDecks.isEmpty()) {
+                Log.w(TAG, "Nenhum deck encontrado no servidor Supabase - o banco de dados remoto está vazio")
+                return@withContext emptyList<RemoteDeck>()
+            }
+            
+            Log.d(TAG, "Recebidos ${remoteDecks.size} decks do Supabase")
+            
+            // Listar todos os decks remotos para debugging
+            remoteDecks.forEachIndexed { index, deck ->
+                Log.d(TAG, "Deck remoto #$index: ID=${deck.id}, Nome=${deck.name}, Tema=${deck.theme ?: "sem tema"}")
+            }
+            
+            // Obter todos os decks locais para verificar quais já existem
+            val localDecks = database.deckDao().getAllDecksSync()
+            Log.d(TAG, "Encontrados ${localDecks.size} decks locais")
+            
+            // Listar decks locais para debugging
+            localDecks.forEachIndexed { index, deck ->
+                Log.d(TAG, "Deck local #$index: ID=${deck.id}, Nome=${deck.name}, Tema=${deck.theme}")
+            }
+            
+            // Criar mapeamento de decks locais por nome e tema para verificação rápida
+            val localDecksByNameAndTheme = localDecks.associateBy { 
+                "${it.name.trim().lowercase()}||${it.theme.trim().lowercase()}" 
+            }
+            
+            // Filtra os decks que não existem localmente
+            val availableDecks = remoteDecks.filter { remoteDeck ->
+                val key = "${remoteDeck.name.trim().lowercase()}||${(remoteDeck.theme ?: "").trim().lowercase()}"
+                val exists = localDecksByNameAndTheme.containsKey(key)
+                if (exists) {
+                    Log.d(TAG, "Deck '${remoteDeck.name}' já existe localmente, ignorando")
+                }
+                !exists
+            }
+            
+            Log.d(TAG, "Encontrados ${availableDecks.size} decks disponíveis para importação")
+            
+            // Listar decks disponíveis para importação
+            if (availableDecks.isEmpty()) {
+                Log.w(TAG, "Todos os decks remotos já existem localmente - nada para importar")
+            } else {
+                availableDecks.forEachIndexed { index, deck ->
+                    Log.d(TAG, "Deck disponível #$index: ID=${deck.id}, Nome=${deck.name}, Tema=${deck.theme ?: "sem tema"}")
+                }
+            }
+            
+            return@withContext availableDecks
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao buscar decks remotos disponíveis: ${e.message}", e)
+            throw Exception("Erro ao buscar decks: ${e.message}")
+        }
+    }
+    
+    /**
+     * Importa decks específicos do Supabase para o dispositivo local.
+     * @param decksToImport Lista de decks remotos que devem ser importados
+     * @return true se ao menos um deck foi importado com sucesso
+     */
+    suspend fun importRemoteDecks(decksToImport: List<RemoteDeck>): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (decksToImport.isEmpty()) {
+                return@withContext false
+            }
+            
+            Log.d(TAG, "Importando ${decksToImport.size} decks remotos")
+            var importedCount = 0
+            
+            for (remoteDeck in decksToImport) {
+                try {
+                    // Criar deck local a partir do deck remoto
+                    val localDeck = Deck(
+                        id = 0, // Usar ID 0 para que o Room gere um novo ID
+                        name = remoteDeck.name,
+                        theme = remoteDeck.theme ?: "",
+                        createdAt = System.currentTimeMillis()
+                    )
+                    
+                    // Inserir deck no banco de dados local
+                    val deckId = database.deckDao().insert(localDeck)
+                    Log.d(TAG, "Deck importado: ${remoteDeck.name}, ID local: $deckId")
+                    
+                    // Mapear o ID remoto para o ID local para importar os flashcards
+                    remoteToLocalIdMap[remoteDeck.id] = deckId
+                    
+                    // Buscar todos os flashcards associados a este deck remoto
+                    val remoteFlashcards = supabaseRepository.fetchFlashcardsByDeckId(remoteDeck.id)
+                    Log.d(TAG, "Encontrados ${remoteFlashcards.size} flashcards para importar do deck ${remoteDeck.name}")
+                    
+                    // Importar flashcards deste deck
+                    for (remoteFlashcard in remoteFlashcards) {
+                        val flashcard = convertRemoteToLocalFlashcard(remoteFlashcard, deckId)
+                        val flashcardId = database.flashcardDao().insert(flashcard.copy(id = 0))
+                        Log.d(TAG, "Flashcard importado: ID=$flashcardId")
+                    }
+                    
+                    importedCount++
+                } catch (e: Exception) {
+                    Log.e(TAG, "Erro ao importar deck ${remoteDeck.id} - ${remoteDeck.name}", e)
+                }
+            }
+            
+            Log.d(TAG, "Importação concluída: $importedCount decks importados com sucesso")
+            return@withContext importedCount > 0
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao importar decks remotos", e)
+            return@withContext false
+        }
+    }
+
+    /**
+     * Sincroniza um único deck específico para o Supabase.
+     * @param deck O deck a ser exportado
+     * @return O deck remoto criado/atualizado ou null se falhou
+     */
+    suspend fun syncSingleDeckToRemote(deck: Deck): com.example.flashcards.data.remote.model.RemoteDeck? = withContext(Dispatchers.IO) {
+        Log.d(TAG, "Exportando deck específico para Supabase: ${deck.name} (ID: ${deck.id})")
+        
+        try {
+            // Verificar se o deck já existe no servidor
+            val remoteDecks = supabaseRepository.fetchAllDecks()
+            val normalizedName = deck.name.trim().lowercase()
+            val normalizedTheme = deck.theme.trim().lowercase()
+            
+            // Buscar por correspondência de nome e tema
+            val existingDeck = remoteDecks.find { remoteDeck ->
+                remoteDeck.name.trim().lowercase() == normalizedName &&
+                (remoteDeck.theme ?: "").trim().lowercase() == normalizedTheme
+            }
+            
+            // Tentar também por ID se não encontrou por nome/tema
+            val existingDeckById = if (existingDeck == null) remoteDecks.find { it.id == deck.id } else null
+            
+            return@withContext when {
+                // Caso 1: Deck existe por nome e tema
+                existingDeck != null -> {
+                    Log.d(TAG, "Deck já existe no Supabase, atualizando: ID=${existingDeck.id}")
+                    val updatedDeck = deck.copy(id = existingDeck.id)
+                    supabaseRepository.updateDeck(updatedDeck)
+                    
+                    remoteToLocalIdMap[existingDeck.id] = deck.id
+                    existingDeck
+                }
+                
+                // Caso 2: Deck existe por ID
+                existingDeckById != null -> {
+                    Log.d(TAG, "Deck existe com o mesmo ID, atualizando: ID=${existingDeckById.id}")
+                    supabaseRepository.updateDeck(deck)
+                    
+                    remoteToLocalIdMap[deck.id] = deck.id
+                    existingDeckById
+                }
+                
+                // Caso 3: Novo deck
+                else -> {
+                    Log.d(TAG, "Criando novo deck no Supabase: ${deck.name}")
+                    val result = supabaseRepository.createDeck(deck)
+                    
+                    remoteToLocalIdMap[result.id] = deck.id
+                    Log.d(TAG, "Novo deck criado no Supabase com ID=${result.id}")
+                    result
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao exportar deck para Supabase: ${e.message}", e)
+            null
+        }
+    }
+    
+    /**
+     * Sincroniza um único flashcard para o Supabase.
+     * @param flashcard O flashcard a ser exportado
+     * @return O flashcard remoto criado/atualizado ou null se falhou
+     */
+    suspend fun syncSingleFlashcardToRemote(flashcard: Flashcard): com.example.flashcards.data.remote.model.RemoteFlashcard? = withContext(Dispatchers.IO) {
+        Log.d(TAG, "Exportando flashcard para Supabase: ID=${flashcard.id}, Deck=${flashcard.deckId}")
+        
+        try {
+            // Buscar todos os flashcards do Supabase para verificar duplicatas
+            val remoteFlashcards = supabaseRepository.fetchAllFlashcards()
+            
+            // Procurar flashcard com mesmo conteúdo
+            val contentKey = "${flashcard.deckId}||${flashcard.front}||${flashcard.back}||${flashcard.type.name}"
+            val existingByContent = remoteFlashcards.find { remoteCard ->
+                val remoteKey = "${remoteCard.deck_id}||${remoteCard.front}||${remoteCard.back}||${remoteCard.type}"
+                contentKey == remoteKey
+            }
+            
+            // Procurar por ID se não encontrou por conteúdo
+            val existingById = if (existingByContent == null) remoteFlashcards.find { it.id == flashcard.id } else null
+            
+            return@withContext when {
+                // Caso 1: Flashcard existe com mesmo conteúdo
+                existingByContent != null -> {
+                    Log.d(TAG, "Flashcard já existe no Supabase, atualizando: ID=${existingByContent.id}")
+                    val updatedFlashcard = flashcard.copy(id = existingByContent.id)
+                    supabaseRepository.updateFlashcard(updatedFlashcard)
+                    existingByContent
+                }
+                
+                // Caso 2: Flashcard existe com mesmo ID
+                existingById != null -> {
+                    Log.d(TAG, "Flashcard existe com mesmo ID, atualizando: ID=${existingById.id}")
+                    supabaseRepository.updateFlashcard(flashcard)
+                    existingById
+                }
+                
+                // Caso 3: Novo flashcard
+                else -> {
+                    Log.d(TAG, "Criando novo flashcard no Supabase")
+                    val result = supabaseRepository.createFlashcard(flashcard)
+                    Log.d(TAG, "Novo flashcard criado com ID=${result.id}")
+                    result
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao exportar flashcard para Supabase: ${e.message}", e)
+            null
         }
     }
 }
@@ -646,4 +889,4 @@ suspend fun UserLocationDao.getAllLocationsSync(): List<UserLocation> {
     // Como getAllUserLocations() retorna LiveData, precisamos de um tratamento diferente
     val locations = getAllUserLocations().value
     return locations ?: emptyList()
-} 
+}

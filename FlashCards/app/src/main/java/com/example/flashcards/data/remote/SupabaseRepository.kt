@@ -82,19 +82,31 @@ class SupabaseRepository {
     }
     
     suspend fun updateDeck(deck: Deck): RemoteDeck = withContext(Dispatchers.IO) {
-        // Usar deck.id (Long) diretamente
-        val remoteDeck = RemoteDeck(
-            id = deck.id, 
-            name = deck.name,
-            theme = deck.theme,
-            created_at = null // Não atualizar created_at
-        )
-        
-        // Usar deck.id (Long) diretamente na query
-        client.put(SupabaseConfig.SUPABASE_URL + SupabaseConfig.DECKS_ENDPOINT + "?id=eq.${deck.id}") {
-            contentType(ContentType.Application.Json)
-            setBody(remoteDeck)
-        }.body()
+        try {
+            Log.d(TAG, "Atualizando deck no Supabase: id=${deck.id}, nome=${deck.name}")
+            
+            // Usar deck.id (Long) diretamente
+            val remoteDeck = RemoteDeck(
+                id = deck.id, 
+                name = deck.name,
+                theme = deck.theme,
+                created_at = null // Não atualizar created_at
+            )
+            
+            // Usar deck.id (Long) diretamente na query
+            client.put(SupabaseConfig.SUPABASE_URL + SupabaseConfig.DECKS_ENDPOINT + "?id=eq.${deck.id}") {
+                contentType(ContentType.Application.Json)
+                header("Prefer", "return=representation")
+                setBody(remoteDeck)
+            }
+            
+            // Retornar o mesmo objeto enviado, já que o Supabase pode não retornar um corpo na resposta
+            // ou o corpo pode não conter todos os campos necessários
+            return@withContext remoteDeck
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao atualizar deck no Supabase: ${e.message}", e)
+            throw e
+        }
     }
     
     suspend fun deleteDeck(id: Long) = withContext(Dispatchers.IO) {
@@ -230,6 +242,29 @@ class SupabaseRepository {
         }
     }
     
+    /**
+     * Busca todos os flashcards associados a um deck específico.
+     * @param deckId ID do deck no Supabase
+     * @return Lista de flashcards remotos
+     */
+    suspend fun fetchFlashcardsByDeckId(deckId: Long): List<RemoteFlashcard> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Buscando flashcards para o deck $deckId")
+            val endpoint = "${SupabaseConfig.SUPABASE_URL}${SupabaseConfig.FLASHCARDS_ENDPOINT}?deck_id=eq.$deckId"
+            
+            // Enviar requisição com headers adequados
+            val response = client.get(endpoint)
+            val result = response.body<List<RemoteFlashcard>>()
+            
+            Log.d(TAG, "Recebidos ${result.size} flashcards para o deck $deckId")
+            result
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao buscar flashcards para o deck $deckId: ${e.message}", e)
+            emptyList<RemoteFlashcard>()
+        }
+    }
+    
     suspend fun createFlashcard(flashcard: Flashcard): RemoteFlashcard = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Criando flashcard no servidor: deck_id=${flashcard.deckId}, tipo=${flashcard.type}")
@@ -284,16 +319,14 @@ class SupabaseRepository {
             
             Log.d(TAG, "Dados a serem enviados: front=${remoteFlashcard.front.take(20)}..., deck_id=${remoteFlashcard.deck_id}")
             
-            val response = client.put(SupabaseConfig.SUPABASE_URL + SupabaseConfig.FLASHCARDS_ENDPOINT + "?id=eq.${flashcard.id}") {
+            client.put(SupabaseConfig.SUPABASE_URL + SupabaseConfig.FLASHCARDS_ENDPOINT + "?id=eq.${flashcard.id}") {
                 contentType(ContentType.Application.Json)
+                header("Prefer", "return=representation")
                 setBody(remoteFlashcard)
             }
             
-            Log.d(TAG, "Resposta do servidor: ${response.status}")
-            val result = response.body<RemoteFlashcard>()
-            Log.d(TAG, "Flashcard atualizado com sucesso: ID=${result.id}, deck_id=${result.deck_id}")
-            
-            result
+            // Retornar o mesmo objeto enviado para evitar problemas de desserialização
+            return@withContext remoteFlashcard
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao atualizar flashcard no servidor: ${e.message}", e)
             throw e
@@ -389,4 +422,4 @@ class SupabaseRepository {
             Log.e(TAG, "Erro ao fazer dump dos headers: ${e.message}")
         }
     }
-} 
+}

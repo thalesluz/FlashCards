@@ -7,11 +7,17 @@ import com.example.flashcards.data.Deck
 import com.example.flashcards.data.DeckRepository
 import com.example.flashcards.data.FlashcardDatabase
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class DeckViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: DeckRepository
     val allDecks: Flow<List<Deck>>
+    
+    // Flag para acionar recarregamento de decks
+    private val _refreshTrigger = MutableStateFlow(0)
+    val refreshTrigger = _refreshTrigger.asStateFlow()
 
     init {
         val deckDao = FlashcardDatabase.getDatabase(application).deckDao()
@@ -49,4 +55,15 @@ class DeckViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteAll() = viewModelScope.launch {
         repository.deleteAll()
     }
-} 
+    
+    /**
+     * Força um recarregamento dos decks do banco de dados.
+     * Útil quando decks foram importados ou modificados externamente.
+     */
+    fun refreshDecks() {
+        _refreshTrigger.value = _refreshTrigger.value + 1
+        viewModelScope.launch {
+            repository.refreshDecks()
+        }
+    }
+}

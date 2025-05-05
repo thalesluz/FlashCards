@@ -23,6 +23,8 @@ import com.example.flashcards.ui.FlashcardViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class DeckActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDeckBinding
@@ -213,12 +215,93 @@ class DeckActivity : AppCompatActivity() {
             .setNegativeButton(getString(R.string.cancel), null)
 
         if (deck != null) {
-            dialogBuilder.setNeutralButton(getString(R.string.delete_deck_from_edit)) { _, _ ->
-                showDeleteDialog(deck)
+            // Se estamos editando um deck existente, adicionar botão de opções
+            dialogBuilder.setNeutralButton(getString(R.string.more_options)) { _, _ ->
+                showDeckOptionsDialog(deck)
             }
         }
 
         dialogBuilder.show()
+    }
+    
+    // Função para mostrar as opções adicionais para um deck
+    private fun showDeckOptionsDialog(deck: Deck) {
+        val options = arrayOf(
+            getString(R.string.export_to_supabase),
+            getString(R.string.delete_deck)
+        )
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(deck.name)
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> exportDeckToSupabase(deck)
+                    1 -> showDeleteDialog(deck)
+                }
+            }
+            .show()
+    }
+    
+    // Function to export a specific deck to Supabase
+    private fun exportDeckToSupabase(deck: Deck) {
+        lifecycleScope.launch {
+            try {
+                Toast.makeText(this@DeckActivity, "Exportando deck para o Supabase...", Toast.LENGTH_SHORT).show()
+                
+                // Export only this specific deck
+                val result = exportSingleDeck(deck)
+                
+                if (result) {
+                    Toast.makeText(
+                        this@DeckActivity,
+                        "Deck '${deck.name}' exportado com sucesso!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        this@DeckActivity,
+                        "Erro ao exportar deck para o Supabase",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@DeckActivity,
+                    "Erro ao exportar: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+    
+    // Helper function to export a single deck to Supabase
+    private suspend fun exportSingleDeck(deck: Deck): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // First retrieve all flashcards for this deck
+            val flashcards = flashcardViewModel.getFlashcardsForDeckSync(deck.id)
+            
+            // Step 1: Export the deck
+            val remoteDeck = syncManager.syncSingleDeckToRemote(deck)
+            
+            // Step 2: Export all flashcards in this deck if deck was exported successfully
+            if (remoteDeck != null) {
+                val remoteDeckId = remoteDeck.id
+                
+                // Export each flashcard
+                flashcards.forEach { flashcard ->
+                    // Update deckId to match the remote deck ID
+                    val remoteFlashcard = flashcard.copy(deckId = remoteDeckId)
+                    syncManager.syncSingleFlashcardToRemote(remoteFlashcard)
+                }
+                
+                return@withContext true
+            }
+            
+            return@withContext false
+        } catch (e: Exception) {
+            Log.e("DeckActivity", "Error exporting deck: ${e.message}")
+            return@withContext false
+        }
     }
 
     private fun showDeleteDialog(deck: Deck) {
@@ -238,25 +321,6 @@ class DeckActivity : AppCompatActivity() {
         intent.putExtra("deckId", deck.id)
         intent.putExtra("deckName", deck.name)
         startActivity(intent)
-    }
-
-    private fun showDeckOptionsDialog(deck: Deck) {
-        val options = arrayOf(
-            getString(R.string.open),
-            getString(R.string.edit),
-            getString(R.string.delete)
-        )
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle(deck.name)
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> openFlashcardActivity(deck)
-                    1 -> showAddDeckDialog(deck)
-                    2 -> showDeleteDialog(deck)
-                }
-            }
-            .show()
     }
 
     private fun addDeck(name: String, theme: String) {

@@ -14,6 +14,15 @@
         android:text="Exercitar Todos os Decks"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/findRemoteDecksButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Buscar Decks do Banco Online"
+        app:icon="@android:drawable/ic_menu_search"
+        app:layout_constraintTop_toBottomOf="@id/allDecksButton" />
+
     <TextView
         android:id="@+id/selectDeckText"
         android:layout_width="wrap_content"
@@ -23,7 +32,7 @@
         android:textSize="16sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/allDecksButton" />
+        app:layout_constraintTop_toBottomOf="@id/findRemoteDecksButton" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerview"

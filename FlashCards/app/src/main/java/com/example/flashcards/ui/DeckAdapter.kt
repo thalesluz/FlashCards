@@ -17,7 +17,8 @@ import com.google.android.material.card.MaterialCardView
 class DeckAdapter(
     private val onItemClick: (Deck) -> Unit,
     private val onEditClick: (Deck) -> Unit = {}, // Valor padrão vazio
-    private val getFlashcardCount: (Long) -> Int
+    private val getFlashcardCount: (Long) -> Int,
+    private val showEditButton: Boolean = true // Novo parâmetro para controlar a visibilidade do botão de edição
 ) : ListAdapter<Deck, DeckAdapter.DeckViewHolder>(DeckDiffCallback()) {
 
     private val flashcardCounts = mutableMapOf<Long, Int>()
@@ -53,6 +54,9 @@ class DeckAdapter(
                     onEditClick(getItem(position)) // Chama a função (pode ser vazia)
                 }
             }
+            
+            // Configurar a visibilidade do botão de edição de acordo com o parâmetro
+            editButton.visibility = if (showEditButton) View.VISIBLE else View.GONE
         }
 
         fun bind(deck: Deck) {

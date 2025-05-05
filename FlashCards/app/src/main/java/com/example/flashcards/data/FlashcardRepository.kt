@@ -1,6 +1,7 @@
 package com.example.flashcards.data
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 class FlashcardRepository(private val dao: FlashcardDao) {
     // Para repetição espaçada
@@ -43,5 +44,16 @@ class FlashcardRepository(private val dao: FlashcardDao) {
 
     suspend fun deleteAllForDeck(deckId: Long) {
         dao.deleteAllForDeck(deckId)
+    }
+
+    /**
+     * Retorna todos os flashcards de um deck específico de forma síncrona
+     */
+    suspend fun getFlashcardsForDeckSync(deckId: Long): List<Flashcard> {
+        return try {
+            dao.getFlashcardsForDeckByCreation(deckId).first()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 }
